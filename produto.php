@@ -1,5 +1,8 @@
 <?php
 require 'admin/config.php';
+require_once __DIR__ . '/admin/includes/price_verification.php';
+
+ensurePriceVerificationSchema($pdo);
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: index.php');
@@ -15,7 +18,7 @@ $stmt = $pdo->prepare("
            p.nome AS afiliado_nome, 
            p.icone_url AS afiliado_icone,
            a.nome AS admin_nome,
-           a.avatar_url AS admin_avatar
+           a.avatar AS admin_avatar
     FROM ofertas o
     LEFT JOIN categorias c ON o.categoria_id = c.id
     LEFT JOIN programas_afiliados p ON o.programa_id = p.id
@@ -40,18 +43,62 @@ $stmtCom = $pdo->prepare("SELECT nome, comentario, created_at FROM comentarios W
 $stmtCom->execute([$id]);
 $comentarios = $stmtCom->fetchAll(PDO::FETCH_ASSOC);
 
+$ultimaVerificacao = getLastPriceVerification($pdo, $id);
+$melhorPrecoHistorico = getBestPriceForOffer($pdo, $id);
+
 // Cálculo de desconto
 $precoAtual = floatval($oferta['preco_atual']);
 $precoOriginal = floatval($oferta['preco_original']);
 $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoOriginal) * 100) : 0;
+
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+$currentUrl = $scheme . '://' . $host . $requestUri;
+$descricaoBase = $oferta['descricao_resumida'] ?? '';
+$descricaoCompleta = strip_tags($oferta['descricao']);
+$metaDescription = $descricaoBase !== '' ? $descricaoBase : $descricaoCompleta;
+$metaDescription = trim(preg_replace('/\s+/', ' ', $metaDescription));
+if (mb_strlen($metaDescription) > 160) {
+    $metaDescription = mb_substr($metaDescription, 0, 157) . '...';
+}
+$imagemPrincipal = count($imagens) ? $imagens[0] : $oferta['imagem_url'];
+if (!preg_match('#^https?://#i', $imagemPrincipal)) {
+    $imagemPrincipal = $scheme . '://' . $host . $imagemPrincipal;
+}
+$adminInitial = '';
+if (!empty($oferta['admin_nome'])) {
+    $firstChar = function_exists('mb_substr')
+        ? mb_substr($oferta['admin_nome'], 0, 1, 'UTF-8')
+        : substr($oferta['admin_nome'], 0, 1);
+    if ($firstChar !== false) {
+        $adminInitial = function_exists('mb_strtoupper')
+            ? mb_strtoupper($firstChar, 'UTF-8')
+            : strtoupper($firstChar);
+    }
+}
 ?>
 
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title><?= htmlspecialchars($oferta['titulo']) ?> | Oferta Shop</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>" />
+  <meta name="robots" content="index, follow" />
+  <title><?= htmlspecialchars($oferta['titulo']) ?> | Oferta Shop</title>
+  <link rel="canonical" href="<?= htmlspecialchars($currentUrl) ?>" />
+  <meta property="og:type" content="product" />
+  <meta property="og:title" content="<?= htmlspecialchars($oferta['titulo']) ?> | Oferta Shop" />
+  <meta property="og:description" content="<?= htmlspecialchars($metaDescription) ?>" />
+  <meta property="og:url" content="<?= htmlspecialchars($currentUrl) ?>" />
+  <meta property="og:site_name" content="Oferta Shop" />
+  <meta property="og:image" content="<?= htmlspecialchars($imagemPrincipal) ?>" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="<?= htmlspecialchars($oferta['titulo']) ?> | Oferta Shop" />
+  <meta name="twitter:description" content="<?= htmlspecialchars($metaDescription) ?>" />
+  <meta name="twitter:image" content="<?= htmlspecialchars($imagemPrincipal) ?>" />
+  <meta name="theme-color" content="#ff5722" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
@@ -99,6 +146,19 @@ $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoO
       height: 32px;
       border-radius: 50%;
       object-fit: cover;
+    }
+
+    .admin-placeholder {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #e9ecef;
+      color: #495057;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 600;
     }
     .carousel-inner img {
       object-fit: contain;
@@ -168,21 +228,51 @@ $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoO
         <a href="<?= htmlspecialchars($oferta['link_afiliado']) ?>" target="_blank" rel="nofollow noopener" class="btn btn-lg btn-afiliado w-100">
           Ver no site parceiro
         </a>
+      </div>
 
-        <?php if ($oferta['afiliado_nome'] && $oferta['afiliado_icone']): ?>
-          <div class="afiliado-info">
-            <img src="<?= htmlspecialchars($oferta['afiliado_icone']) ?>" alt="Afiliado">
-            <span>Produto via <strong><?= htmlspecialchars($oferta['afiliado_nome']) ?></strong></span>
+      <div class="mt-3">
+        <?php if ($ultimaVerificacao): ?>
+          <?php $diferenca = $ultimaVerificacao['diferenca'] !== null ? (float) $ultimaVerificacao['diferenca'] : null; ?>
+          <div class="alert <?= $ultimaVerificacao['status'] === 'ok' ? 'alert-success' : 'alert-warning' ?> mb-0">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <strong>Verificação de preço</strong>
+              <small class="text-muted"><?= date('d/m/Y H:i', strtotime($ultimaVerificacao['verificado_em'])) ?></small>
+            </div>
+            <?php if ($ultimaVerificacao['status'] === 'ok' && $ultimaVerificacao['preco_encontrado'] !== null): ?>
+              <p class="mb-1">Preço encontrado: <strong>R$ <?= number_format((float) $ultimaVerificacao['preco_encontrado'], 2, ',', '.') ?></strong></p>
+              <?php if ($diferenca !== null && $diferenca !== 0.0): ?>
+                <p class="mb-1">Diferença em relação ao cadastro: <strong><?= $diferenca > 0 ? '+' : '' ?>R$ <?= number_format($diferenca, 2, ',', '.') ?></strong></p>
+              <?php endif; ?>
+            <?php endif; ?>
+            <p class="mb-0 text-muted"><?= htmlspecialchars($ultimaVerificacao['mensagem'] ?? 'Verificação registrada.') ?></p>
+            <?php if ($melhorPrecoHistorico !== null): ?>
+              <p class="mb-0 mt-2">Melhor preço registrado: <strong>R$ <?= number_format($melhorPrecoHistorico, 2, ',', '.') ?></strong></p>
+            <?php endif; ?>
           </div>
-        <?php endif; ?>
-
-        <?php if ($oferta['admin_nome']): ?>
-          <div class="admin-info">
-            <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Admin">
-            <span>Publicado por <strong><?= htmlspecialchars($oferta['admin_nome']) ?></strong></span>
+        <?php else: ?>
+          <div class="alert alert-info mb-0">
+            Nenhuma verificação automática de preço foi realizada para esta oferta até o momento.
           </div>
         <?php endif; ?>
       </div>
+
+      <?php if ($oferta['afiliado_nome'] && $oferta['afiliado_icone']): ?>
+        <div class="afiliado-info mt-3">
+          <img src="<?= htmlspecialchars($oferta['afiliado_icone']) ?>" alt="Afiliado">
+          <span>Produto via <strong><?= htmlspecialchars($oferta['afiliado_nome']) ?></strong></span>
+        </div>
+      <?php endif; ?>
+
+      <?php if (!empty($oferta['admin_nome'])): ?>
+        <div class="admin-info mt-2">
+          <?php if (!empty($oferta['admin_avatar'])): ?>
+            <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Admin">
+          <?php elseif ($adminInitial !== ''): ?>
+            <div class="admin-placeholder" aria-hidden="true"><?= htmlspecialchars($adminInitial) ?></div>
+          <?php endif; ?>
+          <span>Publicado por <strong><?= htmlspecialchars($oferta['admin_nome']) ?></strong></span>
+        </div>
+      <?php endif; ?>
     </div>
   </div>
 

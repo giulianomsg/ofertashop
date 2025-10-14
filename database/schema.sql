@@ -178,6 +178,25 @@ CREATE TABLE `programas_afiliados` (
   `icone_url` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `verificacoes_preco`
+--
+
+CREATE TABLE `verificacoes_preco` (
+  `id` int(11) NOT NULL,
+  `oferta_id` int(11) NOT NULL,
+  `preco_cadastrado` decimal(10,2) NOT NULL,
+  `preco_encontrado` decimal(10,2) DEFAULT NULL,
+  `diferenca` decimal(10,2) DEFAULT NULL,
+  `status` enum('ok','falha') NOT NULL DEFAULT 'falha',
+  `mensagem` varchar(255) DEFAULT NULL,
+  `fonte` varchar(150) DEFAULT NULL,
+  `http_code` smallint(6) DEFAULT NULL,
+  `verificado_em` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 --
 -- Despejando dados para a tabela `programas_afiliados`
 --
@@ -246,6 +265,13 @@ ALTER TABLE `programas_afiliados`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Índices de tabela `verificacoes_preco`
+--
+ALTER TABLE `verificacoes_preco`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `oferta_id` (`oferta_id`);
+
+--
 -- AUTO_INCREMENT para tabelas despejadas
 --
 
@@ -298,6 +324,12 @@ ALTER TABLE `programas_afiliados`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
+-- AUTO_INCREMENT de tabela `verificacoes_preco`
+--
+ALTER TABLE `verificacoes_preco`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- Restrições para tabelas despejadas
 --
 
@@ -331,6 +363,12 @@ ALTER TABLE `imagens_produto`
 ALTER TABLE `ofertas`
   ADD CONSTRAINT `ofertas_ibfk_1` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`),
   ADD CONSTRAINT `ofertas_ibfk_2` FOREIGN KEY (`programa_id`) REFERENCES `programas_afiliados` (`id`) ON DELETE SET NULL;
+
+--
+-- Restrições para tabelas `verificacoes_preco`
+--
+ALTER TABLE `verificacoes_preco`
+  ADD CONSTRAINT `verificacoes_preco_ibfk_1` FOREIGN KEY (`oferta_id`) REFERENCES `ofertas` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
