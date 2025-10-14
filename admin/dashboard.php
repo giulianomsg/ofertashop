@@ -111,6 +111,7 @@ $inativas = $statusOfertas[0] ?? 0;
   <a href="ofertas.php"><i class="fas fa-tags me-2"></i> Ofertas</a>
   <a href="categorias.php"><i class="fas fa-list me-2"></i> Categorias</a>
   <a href="afiliados.php"><i class="fas fa-link me-2"></i> Afiliados</a>
+  <a href="comentarios.php">Comentários</a>
   <a href="administradores.php"><i class="fas fa-user-shield me-2"></i> Administradores</a>
   <a href="logout.php"><i class="fas fa-sign-out-alt me-2"></i> Sair</a>
 </div>
@@ -210,3 +211,4 @@ $inativas = $statusOfertas[0] ?? 0;
 
 </body>
 </html>
+
