@@ -3,17 +3,21 @@ require 'admin/config.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $oferta_id = isset($_POST['oferta_id']) ? intval($_POST['oferta_id']) : 0;
-    $nota = isset($_POST['nota']) ? intval($_POST['nota']) : 0;
+    $nome = trim($_POST['nome'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $comentario = trim($_POST['comentario'] ?? '');
 
     // Validação básica
-    if ($oferta_id > 0 && $nota >= 1 && $nota <= 5) {
-        $stmt = $pdo->prepare("INSERT INTO avaliacoes (oferta_id, nota, created_at) VALUES (?, ?, NOW())");
-        $stmt->execute([$oferta_id, $nota]);
+    if ($oferta_id && $nome && $comentario) {
+        $stmt = $pdo->prepare("INSERT INTO comentarios (oferta_id, nome, email, comentario) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$oferta_id, $nome, $email, $comentario]);
     }
 
-    header("Location: produto.php?id=" . $oferta_id);
+    // Redireciona de volta para a página do produto
+    header("Location: produto.php?id=$oferta_id&comentario=enviado");
     exit;
 } else {
+    // Acesso inválido
     header("Location: index.php");
     exit;
 }
