@@ -46,6 +46,8 @@ $comentarios = $stmtCom->fetchAll(PDO::FETCH_ASSOC);
 $ultimaVerificacao = getLastPriceVerification($pdo, $id);
 $melhorPrecoHistorico = getBestPriceForOffer($pdo, $id);
 
+$comentarioEnviado = isset($_GET['comentario']) && $_GET['comentario'] === 'enviado';
+
 // Cálculo de desconto
 $precoAtual = floatval($oferta['preco_atual']);
 $precoOriginal = floatval($oferta['preco_original']);
@@ -292,6 +294,11 @@ if (!empty($oferta['admin_nome'])) {
 
     <div class="col-lg-4">
       <h5>Deixe seu comentário</h5>
+      <?php if ($comentarioEnviado): ?>
+        <div class="alert alert-success" role="alert">
+          Seu comentário foi enviado e será exibido após análise.
+        </div>
+      <?php endif; ?>
       <form action="avaliar.php" method="post">
         <input type="hidden" name="oferta_id" value="<?= $id ?>">
         <div class="mb-2">
