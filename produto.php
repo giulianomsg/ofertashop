@@ -102,6 +102,7 @@ if (!empty($oferta['admin_nome'])) {
   <meta name="twitter:image" content="<?= htmlspecialchars($imagemPrincipal) ?>" />
   <meta name="theme-color" content="#ff5722" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <style>
     body {
       background-color: #f8f9fa;
@@ -136,31 +137,56 @@ if (!empty($oferta['admin_nome'])) {
       background-color: #e64a19;
       border-color: #e64a19;
     }
-    .afiliado-info,
-    .admin-info {
+    .afiliado-info {
       margin-top: 1rem;
       display: flex;
       align-items: center;
       gap: 10px;
     }
-    .afiliado-info img, .admin-info img {
+
+    .afiliado-info img {
       width: 32px;
       height: 32px;
       border-radius: 50%;
       object-fit: cover;
     }
 
-    .admin-placeholder {
-      width: 32px;
-      height: 32px;
+    .admin-highlight {
+      margin-top: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .admin-highlight .avatar-wrapper {
+      width: 60px;
+      height: 60px;
       border-radius: 50%;
-      background: #e9ecef;
-      color: #495057;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      background: linear-gradient(135deg, #ff784e, #ff5722);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.85rem;
+    }
+
+    .admin-highlight .avatar-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .admin-highlight .avatar-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
       font-weight: 600;
+      font-size: 1.3rem;
     }
     .carousel-inner img {
       object-fit: contain;
@@ -266,13 +292,20 @@ if (!empty($oferta['admin_nome'])) {
       <?php endif; ?>
 
       <?php if (!empty($oferta['admin_nome'])): ?>
-        <div class="admin-info mt-2">
-          <?php if (!empty($oferta['admin_avatar'])): ?>
-            <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Admin">
-          <?php elseif ($adminInitial !== ''): ?>
-            <div class="admin-placeholder" aria-hidden="true"><?= htmlspecialchars($adminInitial) ?></div>
-          <?php endif; ?>
-          <span>Publicado por <strong><?= htmlspecialchars($oferta['admin_nome']) ?></strong></span>
+        <div class="admin-highlight">
+          <div class="avatar-wrapper" data-bs-toggle="tooltip" data-bs-placement="top" title="Oferta adicionada por <?= htmlspecialchars($oferta['admin_nome']) ?>">
+            <?php if (!empty($oferta['admin_avatar'])): ?>
+              <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Avatar de <?= htmlspecialchars($oferta['admin_nome']) ?>">
+            <?php elseif ($adminInitial !== ''): ?>
+              <div class="avatar-placeholder" aria-hidden="true"><?= htmlspecialchars($adminInitial) ?></div>
+            <?php else: ?>
+              <div class="avatar-placeholder" aria-hidden="true"><i class="bi bi-person-fill"></i></div>
+            <?php endif; ?>
+          </div>
+          <div>
+            <span class="text-muted d-block small">Oferta adicionada por</span>
+            <strong><?= htmlspecialchars($oferta['admin_nome']) ?></strong>
+          </div>
         </div>
       <?php endif; ?>
     </div>
@@ -351,6 +384,11 @@ function abrirModal(src) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle=\"tooltip\"]'));
+  tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+    new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+
   var toastEl = document.getElementById('comentarioToast');
   if (toastEl) {
     var toast = bootstrap.Toast.getOrCreateInstance(toastEl);

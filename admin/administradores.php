@@ -6,7 +6,7 @@ if (!isset($_SESSION['admin'])) {
     exit;
 }
 
-$stmt = $pdo->query("SELECT id, nome, email FROM admins ORDER BY nome");
+$stmt = $pdo->query("SELECT id, nome, email, avatar FROM admins ORDER BY nome");
 $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -35,6 +35,7 @@ $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <thead>
           <tr>
             <th>ID</th>
+            <th>Avatar</th>
             <th>Nome</th>
             <th>Email</th>
             <th>Ações</th>
@@ -44,6 +45,22 @@ $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
           <?php foreach ($admins as $a): ?>
             <tr>
               <td><?= $a['id'] ?></td>
+              <td>
+                <?php if (!empty($a['avatar'])): ?>
+                  <img src="<?= htmlspecialchars($a['avatar']) ?>" alt="Avatar de <?= htmlspecialchars($a['nome']) ?>" class="rounded-circle" style="width: 45px; height: 45px; object-fit: cover;">
+                <?php else: ?>
+                  <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center fw-semibold" style="width: 45px; height: 45px;">
+                    <?php
+                      $initial = '';
+                      $firstChar = function_exists('mb_substr') ? mb_substr($a['nome'], 0, 1, 'UTF-8') : substr($a['nome'], 0, 1);
+                      if ($firstChar !== false) {
+                        $initial = function_exists('mb_strtoupper') ? mb_strtoupper($firstChar, 'UTF-8') : strtoupper($firstChar);
+                      }
+                      echo htmlspecialchars($initial);
+                    ?>
+                  </div>
+                <?php endif; ?>
+              </td>
               <td><?= htmlspecialchars($a['nome']) ?></td>
               <td><?= htmlspecialchars($a['email']) ?></td>
               <td>

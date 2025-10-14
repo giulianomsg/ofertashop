@@ -222,31 +222,48 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
       object-fit: contain;
     }
 
-    .admin-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 8px;
+    .product-front {
+      padding-bottom: 4.5rem;
     }
 
-    .admin-info img {
-      width: 24px;
-      height: 24px;
+    .admin-chip {
+      position: absolute;
+      bottom: 1rem;
+      right: 1rem;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid rgba(255, 255, 255, 0.7);
+      z-index: 5;
+    }
+
+    .admin-chip img {
+      width: 100%;
+      height: 100%;
       border-radius: 50%;
       object-fit: cover;
     }
 
-    .admin-placeholder {
-      width: 24px;
-      height: 24px;
+    .admin-chip .avatar-placeholder {
+      width: 100%;
+      height: 100%;
       border-radius: 50%;
-      background: #e9ecef;
-      color: #495057;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.75rem;
       font-weight: 600;
+      color: #fff;
+      background: linear-gradient(135deg, #ff784e, #ff5722);
+      font-size: 1.1rem;
+    }
+
+    .admin-chip .avatar-placeholder i {
+      font-size: 1.35rem;
     }
 
     footer {
@@ -387,13 +404,14 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
 
                   <!-- Admin -->
                   <?php if (!empty($oferta['admin_nome'])): ?>
-                    <div class="admin-info mt-2">
+                    <div class="admin-chip" data-bs-toggle="tooltip" data-bs-placement="top" title="Adicionado por <?= htmlspecialchars($oferta['admin_nome']) ?>">
                       <?php if (!empty($oferta['admin_avatar'])): ?>
-                        <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Admin">
+                        <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Avatar de <?= htmlspecialchars($oferta['admin_nome']) ?>">
                       <?php elseif ($adminInitial !== ''): ?>
-                        <div class="admin-placeholder" aria-hidden="true"><?= htmlspecialchars($adminInitial) ?></div>
+                        <div class="avatar-placeholder" aria-hidden="true"><?= htmlspecialchars($adminInitial) ?></div>
+                      <?php else: ?>
+                        <div class="avatar-placeholder" aria-hidden="true"><i class="bi bi-person-fill"></i></div>
                       <?php endif; ?>
-                      <small><?= htmlspecialchars($oferta['admin_nome']) ?></small>
                     </div>
                   <?php endif; ?>
 
@@ -427,5 +445,13 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+      new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  });
+</script>
 </body>
 </html>
