@@ -36,6 +36,7 @@ foreach ($comentarios as $comentario) {
   <meta charset="UTF-8">
   <title>Comentários - Admin</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
@@ -56,10 +57,15 @@ foreach ($comentarios as $comentario) {
       <h3 class="mb-1">Moderação de Comentários</h3>
       <p class="text-muted mb-0">Gerencie aprovações, responda rapidamente e mantenha sua vitrine segura.</p>
     </div>
-    <div class="filter-buttons btn-group" role="group" aria-label="Filtros de status">
-      <button type="button" class="btn btn-outline-secondary active" data-filter-status="todos">Todos (<?= $totais['todos'] ?>)</button>
-      <button type="button" class="btn btn-outline-warning" data-filter-status="pendentes">Pendentes (<?= $totais['pendentes'] ?>)</button>
-      <button type="button" class="btn btn-outline-success" data-filter-status="aprovados">Aprovados (<?= $totais['aprovados'] ?>)</button>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <a href="dashboard.php" class="btn btn-outline-primary">
+        <i class="bi bi-arrow-left"></i> Voltar ao Dashboard
+      </a>
+      <div class="filter-buttons btn-group" role="group" aria-label="Filtros de status">
+        <button type="button" class="btn btn-outline-secondary active" data-filter-status="todos">Todos (<?= $totais['todos'] ?>)</button>
+        <button type="button" class="btn btn-outline-warning" data-filter-status="pendentes">Pendentes (<?= $totais['pendentes'] ?>)</button>
+        <button type="button" class="btn btn-outline-success" data-filter-status="aprovados">Aprovados (<?= $totais['aprovados'] ?>)</button>
+      </div>
     </div>
   </div>
 

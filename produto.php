@@ -152,24 +152,28 @@ if (!empty($oferta['admin_nome'])) {
     }
 
     .admin-highlight {
-      margin-top: 1.5rem;
-      display: flex;
+      margin-top: 1.25rem;
+      display: inline-flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
+      padding: 0.5rem 0.75rem;
+      background: rgba(0, 0, 0, 0.03);
+      border-radius: 999px;
     }
 
     .admin-highlight .avatar-wrapper {
-      width: 60px;
-      height: 60px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       overflow: hidden;
       position: relative;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-      border: 2px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      border: 2px solid #fff;
       background: linear-gradient(135deg, #ff784e, #ff5722);
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
     }
 
     .admin-highlight .avatar-wrapper img {
@@ -186,7 +190,20 @@ if (!empty($oferta['admin_nome'])) {
       justify-content: center;
       color: #fff;
       font-weight: 600;
-      font-size: 1.3rem;
+      font-size: 1rem;
+    }
+
+    .admin-highlight .admin-name {
+      font-weight: 600;
+      color: #343a40;
+      margin: 0;
+    }
+
+    .admin-highlight .admin-label {
+      display: block;
+      font-size: 0.75rem;
+      color: #6c757d;
+      line-height: 1.2;
     }
     .carousel-inner img {
       object-fit: contain;
@@ -303,8 +320,8 @@ if (!empty($oferta['admin_nome'])) {
             <?php endif; ?>
           </div>
           <div>
-            <span class="text-muted d-block small">Oferta adicionada por</span>
-            <strong><?= htmlspecialchars($oferta['admin_nome']) ?></strong>
+            <span class="admin-label">Oferta adicionada por</span>
+            <p class="admin-name mb-0"><?= htmlspecialchars($oferta['admin_nome']) ?></p>
           </div>
         </div>
       <?php endif; ?>
