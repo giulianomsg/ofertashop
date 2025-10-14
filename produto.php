@@ -8,15 +8,18 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 
 $id = intval($_GET['id']);
 
-// Incrementa contador de acessos
-$pdo->prepare("UPDATE ofertas SET acessos = acessos + 1 WHERE id = ?")->execute([$id]);
-
-// Busca dados da oferta
+// Busca a oferta
 $stmt = $pdo->prepare("
-    SELECT o.*, c.nome AS categoria, p.nome AS afiliado_nome, p.icone_url AS afiliado_icone
+    SELECT o.*, 
+           c.nome AS categoria, 
+           p.nome AS afiliado_nome, 
+           p.icone_url AS afiliado_icone,
+           a.nome AS admin_nome,
+           a.avatar_url AS admin_avatar
     FROM ofertas o
     LEFT JOIN categorias c ON o.categoria_id = c.id
     LEFT JOIN programas_afiliados p ON o.programa_id = p.id
+    LEFT JOIN admins a ON o.admin_id = a.id
     WHERE o.id = ? AND o.ativo = 1
 ");
 $stmt->execute([$id]);
@@ -27,18 +30,17 @@ if (!$oferta) {
     exit;
 }
 
-// Busca imagens adicionais
+// Imagens extras
 $stmtImgs = $pdo->prepare("SELECT caminho FROM imagens_produto WHERE oferta_id = ?");
 $stmtImgs->execute([$id]);
 $imagens = $stmtImgs->fetchAll(PDO::FETCH_COLUMN);
 
-// Busca média de avaliação
-$notaStmt = $pdo->prepare("SELECT AVG(nota) as media, COUNT(*) as total FROM avaliacoes WHERE oferta_id = ?");
-$notaStmt->execute([$id]);
-$avaliacao = $notaStmt->fetch();
-$mediaEstrelas = round($avaliacao['media'], 1);
-$totalAvaliacoes = $avaliacao['total'];
+// Comentários aprovados
+$stmtCom = $pdo->prepare("SELECT nome, comentario, created_at FROM comentarios WHERE aprovado = 1 AND oferta_id = ? ORDER BY created_at DESC");
+$stmtCom->execute([$id]);
+$comentarios = $stmtCom->fetchAll(PDO::FETCH_ASSOC);
 
+// Cálculo de desconto
 $precoAtual = floatval($oferta['preco_atual']);
 $precoOriginal = floatval($oferta['preco_original']);
 $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoOriginal) * 100) : 0;
@@ -51,7 +53,6 @@ $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoO
   <title><?= htmlspecialchars($oferta['titulo']) ?> | Oferta Shop</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <style>
     body {
       background-color: #f8f9fa;
@@ -86,16 +87,18 @@ $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoO
       background-color: #e64a19;
       border-color: #e64a19;
     }
-    .afiliado-info {
+    .afiliado-info,
+    .admin-info {
       margin-top: 1rem;
       display: flex;
       align-items: center;
       gap: 10px;
     }
-    .afiliado-info img {
-      width: 30px;
-      height: 30px;
-      object-fit: contain;
+    .afiliado-info img, .admin-info img {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
     }
     .carousel-inner img {
       object-fit: contain;
@@ -105,6 +108,13 @@ $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoO
     .modal-img {
       max-width: 100%;
       height: auto;
+    }
+    .comentario {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 5px;
+      margin-bottom: 1rem;
+      box-shadow: 0 0 5px rgba(0,0,0,0.05);
     }
   </style>
 </head>
@@ -144,17 +154,6 @@ $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoO
 
     <div class="col-md-6">
       <h2><?= htmlspecialchars($oferta['titulo']) ?></h2>
-
-      <?php if ($totalAvaliacoes > 0): ?>
-        <p class="mt-2">
-          Avaliação:
-          <?php for ($i = 1; $i <= 5; $i++): ?>
-            <i class="bi <?= $i <= round($mediaEstrelas) ? 'bi-star-fill text-warning' : 'bi-star text-secondary' ?>"></i>
-          <?php endfor; ?>
-          (<?= $totalAvaliacoes ?> avaliações)
-        </p>
-      <?php endif; ?>
-
       <p class="mt-3"><?= nl2br(htmlspecialchars($oferta['descricao'])) ?></p>
 
       <div class="mt-4">
@@ -171,32 +170,57 @@ $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoO
         </a>
 
         <?php if ($oferta['afiliado_nome'] && $oferta['afiliado_icone']): ?>
-          <div class="afiliado-info mt-3">
-            <img src="<?= htmlspecialchars($oferta['afiliado_icone']) ?>" alt="<?= htmlspecialchars($oferta['afiliado_nome']) ?>">
+          <div class="afiliado-info">
+            <img src="<?= htmlspecialchars($oferta['afiliado_icone']) ?>" alt="Afiliado">
             <span>Produto via <strong><?= htmlspecialchars($oferta['afiliado_nome']) ?></strong></span>
           </div>
         <?php endif; ?>
+
+        <?php if ($oferta['admin_nome']): ?>
+          <div class="admin-info">
+            <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Admin">
+            <span>Publicado por <strong><?= htmlspecialchars($oferta['admin_nome']) ?></strong></span>
+          </div>
+        <?php endif; ?>
       </div>
+    </div>
+  </div>
 
-      <hr class="my-4">
+  <hr class="my-5">
 
-      <h5>Avalie este produto:</h5>
-      <form method="post" action="avaliar.php">
-        <input type="hidden" name="oferta_id" value="<?= $id ?>">
-        <div class="mb-3">
-          <?php for ($i = 1; $i <= 5; $i++): ?>
-            <label class="me-2">
-              <input type="radio" name="nota" value="<?= $i ?>" required> <?= $i ?> ⭐
-            </label>
-          <?php endfor; ?>
+  <div class="row">
+    <div class="col-lg-8">
+      <h4>Comentários (<?= count($comentarios) ?>)</h4>
+
+      <?php foreach ($comentarios as $c): ?>
+        <div class="comentario">
+          <strong><?= htmlspecialchars($c['nome']) ?></strong> <small class="text-muted"><?= date('d/m/Y H:i', strtotime($c['created_at'])) ?></small>
+          <p><?= nl2br(htmlspecialchars($c['comentario'])) ?></p>
         </div>
-        <button type="submit" class="btn btn-sm btn-primary">Enviar Avaliação</button>
+      <?php endforeach; ?>
+    </div>
+
+    <div class="col-lg-4">
+      <h5>Deixe seu comentário</h5>
+      <form action="avaliar.php" method="post">
+        <input type="hidden" name="oferta_id" value="<?= $id ?>">
+        <div class="mb-2">
+          <input type="text" name="nome" class="form-control" placeholder="Seu nome" required>
+        </div>
+        <div class="mb-2">
+          <input type="email" name="email" class="form-control" placeholder="Seu e-mail (opcional)">
+        </div>
+        <div class="mb-2">
+          <textarea name="comentario" class="form-control" rows="4" placeholder="Seu comentário" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Enviar comentário</button>
       </form>
+      <small class="text-muted">* Seu comentário será publicado após aprovação.</small>
     </div>
   </div>
 </main>
 
-<!-- Modal para Zoom -->
+<!-- Modal de Zoom -->
 <div class="modal fade" id="zoomModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content bg-dark text-white text-center">
