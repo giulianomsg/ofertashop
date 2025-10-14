@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require 'admin/config.php';
 require_once __DIR__ . '/admin/includes/price_verification.php';
 
@@ -401,3 +405,4 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
