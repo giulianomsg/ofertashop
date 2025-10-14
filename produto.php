@@ -168,16 +168,16 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
     .admin-attribution {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 1.25rem;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
     }
 
     .admin-attribution .avatar-wrapper {
-      width: 44px;
-      height: 44px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
       border: 2px solid #fff;
       background: linear-gradient(135deg, #ff784e, #ff5722);
       display: flex;
@@ -200,21 +200,21 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
       justify-content: center;
       color: #fff;
       font-weight: 600;
-      font-size: 1rem;
+      font-size: 0.85rem;
     }
 
     .admin-attribution .admin-name {
       font-weight: 600;
       color: #343a40;
       margin: 0;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
     }
 
     .admin-attribution .admin-label {
       display: block;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: #6c757d;
-      line-height: 1.2;
+      line-height: 1.1;
     }
     .carousel-inner img {
       object-fit: contain;
