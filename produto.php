@@ -1,5 +1,8 @@
 <?php
 require 'admin/config.php';
+require_once __DIR__ . '/admin/includes/price_verification.php';
+
+ensurePriceVerificationSchema($pdo);
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: index.php');
@@ -39,6 +42,9 @@ $imagens = $stmtImgs->fetchAll(PDO::FETCH_COLUMN);
 $stmtCom = $pdo->prepare("SELECT nome, comentario, created_at FROM comentarios WHERE aprovado = 1 AND oferta_id = ? ORDER BY created_at DESC");
 $stmtCom->execute([$id]);
 $comentarios = $stmtCom->fetchAll(PDO::FETCH_ASSOC);
+
+$ultimaVerificacao = getLastPriceVerification($pdo, $id);
+$melhorPrecoHistorico = getBestPriceForOffer($pdo, $id);
 
 // Cálculo de desconto
 $precoAtual = floatval($oferta['preco_atual']);
@@ -198,21 +204,47 @@ if (!preg_match('#^https?://#i', $imagemPrincipal)) {
         <a href="<?= htmlspecialchars($oferta['link_afiliado']) ?>" target="_blank" rel="nofollow noopener" class="btn btn-lg btn-afiliado w-100">
           Ver no site parceiro
         </a>
+      </div>
 
-        <?php if ($oferta['afiliado_nome'] && $oferta['afiliado_icone']): ?>
-          <div class="afiliado-info">
-            <img src="<?= htmlspecialchars($oferta['afiliado_icone']) ?>" alt="Afiliado">
-            <span>Produto via <strong><?= htmlspecialchars($oferta['afiliado_nome']) ?></strong></span>
+      <div class="mt-3">
+        <?php if ($ultimaVerificacao): ?>
+          <?php $diferenca = $ultimaVerificacao['diferenca'] !== null ? (float) $ultimaVerificacao['diferenca'] : null; ?>
+          <div class="alert <?= $ultimaVerificacao['status'] === 'ok' ? 'alert-success' : 'alert-warning' ?> mb-0">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <strong>Verificação de preço</strong>
+              <small class="text-muted"><?= date('d/m/Y H:i', strtotime($ultimaVerificacao['verificado_em'])) ?></small>
+            </div>
+            <?php if ($ultimaVerificacao['status'] === 'ok' && $ultimaVerificacao['preco_encontrado'] !== null): ?>
+              <p class="mb-1">Preço encontrado: <strong>R$ <?= number_format((float) $ultimaVerificacao['preco_encontrado'], 2, ',', '.') ?></strong></p>
+              <?php if ($diferenca !== null && $diferenca !== 0.0): ?>
+                <p class="mb-1">Diferença em relação ao cadastro: <strong><?= $diferenca > 0 ? '+' : '' ?>R$ <?= number_format($diferenca, 2, ',', '.') ?></strong></p>
+              <?php endif; ?>
+            <?php endif; ?>
+            <p class="mb-0 text-muted"><?= htmlspecialchars($ultimaVerificacao['mensagem'] ?? 'Verificação registrada.') ?></p>
+            <?php if ($melhorPrecoHistorico !== null): ?>
+              <p class="mb-0 mt-2">Melhor preço registrado: <strong>R$ <?= number_format($melhorPrecoHistorico, 2, ',', '.') ?></strong></p>
+            <?php endif; ?>
           </div>
-        <?php endif; ?>
-
-        <?php if ($oferta['admin_nome']): ?>
-          <div class="admin-info">
-            <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Admin">
-            <span>Publicado por <strong><?= htmlspecialchars($oferta['admin_nome']) ?></strong></span>
+        <?php else: ?>
+          <div class="alert alert-info mb-0">
+            Nenhuma verificação automática de preço foi realizada para esta oferta até o momento.
           </div>
         <?php endif; ?>
       </div>
+
+      <?php if ($oferta['afiliado_nome'] && $oferta['afiliado_icone']): ?>
+        <div class="afiliado-info mt-3">
+          <img src="<?= htmlspecialchars($oferta['afiliado_icone']) ?>" alt="Afiliado">
+          <span>Produto via <strong><?= htmlspecialchars($oferta['afiliado_nome']) ?></strong></span>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($oferta['admin_nome']): ?>
+        <div class="admin-info mt-2">
+          <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Admin">
+          <span>Publicado por <strong><?= htmlspecialchars($oferta['admin_nome']) ?></strong></span>
+        </div>
+      <?php endif; ?>
     </div>
   </div>
 
