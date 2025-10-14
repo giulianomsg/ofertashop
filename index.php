@@ -1,57 +1,22 @@
 <?php
 require 'admin/config.php';
 
-// Pega filtros e ordenação
-$categoriasSelecionadas = $_GET['categorias'] ?? [];
-$afiliadosSelecionados = $_GET['afiliados'] ?? [];
-$ordenar = $_GET['ordenar'] ?? 'recentes';
-
-// Base SQL
-$sql = "
-  SELECT o.*, c.nome AS categoria, p.nome AS afiliado_nome, p.icone_url AS afiliado_icone
+// Buscar ofertas com dados do admin e afiliado
+$stmt = $pdo->query("
+  SELECT o.*, 
+         c.nome AS categoria, 
+         p.nome AS afiliado_nome, 
+         p.icone_url AS afiliado_icone,
+         a.nome AS admin_nome,
+         a.avatar_url AS admin_avatar
   FROM ofertas o
   LEFT JOIN categorias c ON o.categoria_id = c.id
   LEFT JOIN programas_afiliados p ON o.programa_id = p.id
+  LEFT JOIN admins a ON o.admin_id = a.id
   WHERE o.ativo = 1
-";
-
-// Filtros
-$params = [];
-
-if (!empty($categoriasSelecionadas)) {
-  $in = implode(',', array_fill(0, count($categoriasSelecionadas), '?'));
-  $sql .= " AND o.categoria_id IN ($in)";
-  $params = array_merge($params, $categoriasSelecionadas);
-}
-if (!empty($afiliadosSelecionados)) {
-  $in = implode(',', array_fill(0, count($afiliadosSelecionados), '?'));
-  $sql .= " AND o.programa_id IN ($in)";
-  $params = array_merge($params, $afiliadosSelecionados);
-}
-
-// Ordenação
-switch ($ordenar) {
-  case 'menor_preco':
-    $sql .= " ORDER BY o.preco_atual ASC";
-    break;
-  case 'maior_preco':
-    $sql .= " ORDER BY o.preco_atual DESC";
-    break;
-  case 'maior_desconto':
-    $sql .= " ORDER BY ((o.preco_original - o.preco_atual) / o.preco_original) DESC";
-    break;
-  default:
-    $sql .= " ORDER BY o.created_at DESC";
-}
-
-// Execução da query
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+  ORDER BY o.created_at DESC
+");
 $ofertas = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Busca categorias e afiliados para os filtros
-$categorias = $pdo->query("SELECT * FROM categorias ORDER BY nome")->fetchAll(PDO::FETCH_ASSOC);
-$afiliados = $pdo->query("SELECT * FROM programas_afiliados ORDER BY nome")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -85,13 +50,10 @@ $afiliados = $pdo->query("SELECT * FROM programas_afiliados ORDER BY nome")->fet
       transform: rotateY(180deg);
     }
 
-    .product-front,
-    .product-back {
+    .product-front, .product-back {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       backface-visibility: hidden;
       border-radius: 8px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.1);
@@ -160,12 +122,18 @@ $afiliados = $pdo->query("SELECT * FROM programas_afiliados ORDER BY nome")->fet
       object-fit: contain;
     }
 
-    aside {
-      background: #fff;
-      padding: 1.5rem;
-      border-radius: 0.5rem;
-      box-shadow: 0 0 10px rgba(0,0,0,0.05);
-      margin-bottom: 2rem;
+    .admin-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .admin-info img {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
     }
 
     footer {
@@ -183,7 +151,7 @@ $afiliados = $pdo->query("SELECT * FROM programas_afiliados ORDER BY nome")->fet
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
   <div class="container">
-    <a class="navbar-brand" href="index.php">🛒 Oferta Shop</a>
+    <a class="navbar-brand" href="#">🛒 Oferta Shop</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -198,84 +166,54 @@ $afiliados = $pdo->query("SELECT * FROM programas_afiliados ORDER BY nome")->fet
 </nav>
 
 <main class="container py-5">
-  <div class="row">
-    <!-- Filtros -->
-    <div class="col-md-3">
-      <aside>
-        <form method="GET" id="filtrosForm">
-          <h5>Filtrar por Categoria</h5>
-          <?php foreach ($categorias as $cat): ?>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="categorias[]" value="<?= $cat['id'] ?>" id="cat<?= $cat['id'] ?>"
-                <?= in_array($cat['id'], $categoriasSelecionadas) ? 'checked' : '' ?>>
-              <label class="form-check-label" for="cat<?= $cat['id'] ?>"><?= htmlspecialchars($cat['nome']) ?></label>
-            </div>
-          <?php endforeach; ?>
+  <h2 class="text-center mb-4">Ofertas em Destaque</h2>
+  <div class="row g-4">
+    <?php foreach ($ofertas as $oferta): ?>
+      <?php
+        $precoAtual = floatval($oferta['preco_atual']);
+        $precoOriginal = floatval($oferta['preco_original']);
+        $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoOriginal) * 100) : 0;
+        $url_produto = 'produto.php?id=' . $oferta['id'];
+      ?>
+      <div class="col-md-4 col-sm-6">
+        <div class="product-card">
+          <div class="product-inner">
 
-          <hr>
-          <h5>Filtrar por Afiliado</h5>
-          <?php foreach ($afiliados as $afi): ?>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="afiliados[]" value="<?= $afi['id'] ?>" id="afi<?= $afi['id'] ?>"
-                <?= in_array($afi['id'], $afiliadosSelecionados) ? 'checked' : '' ?>>
-              <label class="form-check-label" for="afi<?= $afi['id'] ?>"><?= htmlspecialchars($afi['nome']) ?></label>
-            </div>
-          <?php endforeach; ?>
-
-          <hr>
-          <h5>Ordenar por</h5>
-          <select name="ordenar" class="form-select mb-3">
-            <option value="recentes" <?= $ordenar == 'recentes' ? 'selected' : '' ?>>Mais recentes</option>
-            <option value="menor_preco" <?= $ordenar == 'menor_preco' ? 'selected' : '' ?>>Menor preço</option>
-            <option value="maior_preco" <?= $ordenar == 'maior_preco' ? 'selected' : '' ?>>Maior preço</option>
-            <option value="maior_desconto" <?= $ordenar == 'maior_desconto' ? 'selected' : '' ?>>Maior desconto</option>
-          </select>
-
-          <button class="btn btn-primary w-100" type="submit">Aplicar filtros</button>
-        </form>
-      </aside>
-    </div>
-
-    <!-- Cards -->
-    <div class="col-md-9">
-      <h2 class="mb-4">Ofertas em Destaque</h2>
-      <div class="row g-4">
-        <?php foreach ($ofertas as $oferta): ?>
-          <?php
-            $precoAtual = floatval($oferta['preco_atual']);
-            $precoOriginal = floatval($oferta['preco_original']);
-            $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoOriginal) * 100) : 0;
-            $url_produto = 'produto.php?id=' . $oferta['id'];
-          ?>
-          <div class="col-md-6 col-lg-4">
-            <div class="product-card">
-              <div class="product-inner">
-                <!-- Frente -->
-                <div class="product-front position-relative">
-                  <?php if ($oferta['afiliado_icone']): ?>
-                    <div class="badge-afiliado">
-                      <img src="<?= htmlspecialchars($oferta['afiliado_icone']) ?>" alt="Afiliado">
-                    </div>
-                  <?php endif; ?>
-                  <img src="<?= htmlspecialchars($oferta['imagem_url']) ?>" class="img-fluid mb-3 rounded" alt="Imagem do produto">
-                  <div class="product-title"><?= htmlspecialchars($oferta['titulo']) ?></div>
-                  <div class="price">R$ <?= number_format($precoAtual, 2, ',', '.') ?></div>
-                  <?php if ($precoOriginal > $precoAtual): ?>
-                    <div class="old-price">R$ <?= number_format($precoOriginal, 2, ',', '.') ?></div>
-                    <div class="discount">-<?= $desconto ?>%</div>
-                  <?php endif; ?>
+            <!-- Frente -->
+            <div class="product-front position-relative">
+              <?php if ($oferta['afiliado_icone']): ?>
+                <div class="badge-afiliado">
+                  <img src="<?= htmlspecialchars($oferta['afiliado_icone']) ?>" alt="Afiliado">
                 </div>
-                <!-- Verso -->
-                <div class="product-back">
-                  <p><?= nl2br(htmlspecialchars($oferta['descricao_resumida'])) ?></p>
-                  <a href="<?= $url_produto ?>" class="btn btn-success w-100">Ver Oferta</a>
+              <?php endif; ?>
+
+              <img src="<?= htmlspecialchars($oferta['imagem_url']) ?>" class="img-fluid mb-3 rounded" alt="Imagem do produto">
+              <div class="product-title"><?= htmlspecialchars($oferta['titulo']) ?></div>
+              <div class="price">R$ <?= number_format($precoAtual, 2, ',', '.') ?></div>
+              <?php if ($precoOriginal > $precoAtual): ?>
+                <div class="old-price">R$ <?= number_format($precoOriginal, 2, ',', '.') ?></div>
+                <div class="discount">-<?= $desconto ?>%</div>
+              <?php endif; ?>
+
+              <!-- Admin -->
+              <?php if ($oferta['admin_nome']): ?>
+                <div class="admin-info mt-2">
+                  <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Admin">
+                  <small><?= htmlspecialchars($oferta['admin_nome']) ?></small>
                 </div>
-              </div>
+              <?php endif; ?>
             </div>
+
+            <!-- Verso -->
+            <div class="product-back">
+              <p><?= nl2br(htmlspecialchars($oferta['descricao_resumida'])) ?></p>
+              <a href="<?= $url_produto ?>" class="btn btn-success w-100">Ver Oferta</a>
+            </div>
+
           </div>
-        <?php endforeach; ?>
+        </div>
       </div>
-    </div>
+    <?php endforeach; ?>
   </div>
 </main>
 
