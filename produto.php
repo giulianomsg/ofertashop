@@ -294,11 +294,6 @@ if (!empty($oferta['admin_nome'])) {
 
     <div class="col-lg-4">
       <h5>Deixe seu comentário</h5>
-      <?php if ($comentarioEnviado): ?>
-        <div class="alert alert-success" role="alert">
-          Seu comentário foi enviado e será exibido após análise.
-        </div>
-      <?php endif; ?>
       <form action="avaliar.php" method="post">
         <input type="hidden" name="oferta_id" value="<?= $id ?>">
         <div class="mb-2">
@@ -334,14 +329,34 @@ if (!empty($oferta['admin_nome'])) {
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<?php if ($comentarioEnviado): ?>
+<div class="toast-container position-fixed top-0 end-0 p-3">
+  <div id="comentarioToast" class="toast align-items-center text-bg-success border-0" role="status" aria-live="polite" aria-atomic="true" data-bs-delay="5000" data-bs-autohide="true">
+    <div class="d-flex">
+      <div class="toast-body">
+        Seu comentário foi enviado e será exibido após análise.
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 <script>
 function abrirModal(src) {
   const modal = new bootstrap.Modal(document.getElementById('zoomModal'));
   document.getElementById('imgZoom').src = src;
   modal.show();
 }
-</script>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+document.addEventListener('DOMContentLoaded', function () {
+  var toastEl = document.getElementById('comentarioToast');
+  if (toastEl) {
+    var toast = bootstrap.Toast.getOrCreateInstance(toastEl);
+    toast.show();
+  }
+});
+</script>
 </body>
 </html>
