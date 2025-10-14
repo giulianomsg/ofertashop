@@ -44,14 +44,44 @@ $comentarios = $stmtCom->fetchAll(PDO::FETCH_ASSOC);
 $precoAtual = floatval($oferta['preco_atual']);
 $precoOriginal = floatval($oferta['preco_original']);
 $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoOriginal) * 100) : 0;
+
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+$currentUrl = $scheme . '://' . $host . $requestUri;
+$descricaoBase = $oferta['descricao_resumida'] ?? '';
+$descricaoCompleta = strip_tags($oferta['descricao']);
+$metaDescription = $descricaoBase !== '' ? $descricaoBase : $descricaoCompleta;
+$metaDescription = trim(preg_replace('/\s+/', ' ', $metaDescription));
+if (mb_strlen($metaDescription) > 160) {
+    $metaDescription = mb_substr($metaDescription, 0, 157) . '...';
+}
+$imagemPrincipal = count($imagens) ? $imagens[0] : $oferta['imagem_url'];
+if (!preg_match('#^https?://#i', $imagemPrincipal)) {
+    $imagemPrincipal = $scheme . '://' . $host . $imagemPrincipal;
+}
 ?>
 
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title><?= htmlspecialchars($oferta['titulo']) ?> | Oferta Shop</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>" />
+  <meta name="robots" content="index, follow" />
+  <title><?= htmlspecialchars($oferta['titulo']) ?> | Oferta Shop</title>
+  <link rel="canonical" href="<?= htmlspecialchars($currentUrl) ?>" />
+  <meta property="og:type" content="product" />
+  <meta property="og:title" content="<?= htmlspecialchars($oferta['titulo']) ?> | Oferta Shop" />
+  <meta property="og:description" content="<?= htmlspecialchars($metaDescription) ?>" />
+  <meta property="og:url" content="<?= htmlspecialchars($currentUrl) ?>" />
+  <meta property="og:site_name" content="Oferta Shop" />
+  <meta property="og:image" content="<?= htmlspecialchars($imagemPrincipal) ?>" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="<?= htmlspecialchars($oferta['titulo']) ?> | Oferta Shop" />
+  <meta name="twitter:description" content="<?= htmlspecialchars($metaDescription) ?>" />
+  <meta name="twitter:image" content="<?= htmlspecialchars($imagemPrincipal) ?>" />
+  <meta name="theme-color" content="#ff5722" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {

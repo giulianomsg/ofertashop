@@ -17,6 +17,19 @@ $stmt = $pdo->query("
   ORDER BY o.created_at DESC
 ");
 $ofertas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+$currentUrl = $scheme . '://' . $host . $requestUri;
+$metaDescription = 'Descubra ofertas imperdíveis e descontos exclusivos em tecnologia, casa, lazer e muito mais no Oferta Shop.';
+$ogImagePath = (!empty($ofertas) && !empty($ofertas[0]['imagem_url']))
+  ? $ofertas[0]['imagem_url']
+  : 'https://via.placeholder.com/1200x630.png?text=Oferta+Shop';
+
+if (!preg_match('#^https?://#i', $ogImagePath)) {
+  $ogImagePath = $scheme . '://' . $host . $ogImagePath;
+}
 ?>
 
 <!DOCTYPE html>
@@ -24,7 +37,21 @@ $ofertas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>" />
+  <meta name="robots" content="index, follow" />
   <title>Oferta Shop - As Melhores Ofertas</title>
+  <link rel="canonical" href="<?= htmlspecialchars($currentUrl) ?>" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Oferta Shop - As Melhores Ofertas" />
+  <meta property="og:description" content="<?= htmlspecialchars($metaDescription) ?>" />
+  <meta property="og:url" content="<?= htmlspecialchars($currentUrl) ?>" />
+  <meta property="og:site_name" content="Oferta Shop" />
+  <meta property="og:image" content="<?= htmlspecialchars($ogImagePath) ?>" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Oferta Shop - As Melhores Ofertas" />
+  <meta name="twitter:description" content="<?= htmlspecialchars($metaDescription) ?>" />
+  <meta name="twitter:image" content="<?= htmlspecialchars($ogImagePath) ?>" />
+  <meta name="theme-color" content="#ff5722" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <style>
