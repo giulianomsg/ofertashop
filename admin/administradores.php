@@ -46,8 +46,16 @@ $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <tr>
               <td><?= $a['id'] ?></td>
               <td>
-                <?php if (!empty($a['avatar'])): ?>
-                  <img src="<?= htmlspecialchars($a['avatar']) ?>" alt="Avatar de <?= htmlspecialchars($a['nome']) ?>" class="rounded-circle" style="width: 45px; height: 45px; object-fit: cover;">
+                <?php
+                  $avatarUrl = null;
+                  if (!empty($a['avatar'])) {
+                    $avatarUrl = preg_match('#^https?://#i', $a['avatar'])
+                      ? $a['avatar']
+                      : '../' . ltrim($a['avatar'], '/');
+                  }
+                ?>
+                <?php if ($avatarUrl): ?>
+                  <img src="<?= htmlspecialchars($avatarUrl) ?>" alt="Avatar de <?= htmlspecialchars($a['nome']) ?>" class="rounded-circle" style="width: 45px; height: 45px; object-fit: cover;">
                 <?php else: ?>
                   <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center fw-semibold" style="width: 45px; height: 45px;">
                     <?php

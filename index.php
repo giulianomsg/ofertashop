@@ -4,6 +4,19 @@ require_once __DIR__ . '/admin/includes/price_verification.php';
 
 ensurePriceVerificationSchema($pdo);
 
+function resolvePublicAvatar(?string $path): ?string
+{
+  if (empty($path)) {
+    return null;
+  }
+
+  if (preg_match('#^https?://#i', $path)) {
+    return $path;
+  }
+
+  return '/' . ltrim($path, '/');
+}
+
 // Listas auxiliares para filtros
 $categorias = $pdo->query('SELECT id, nome FROM categorias ORDER BY nome')->fetchAll(PDO::FETCH_ASSOC);
 $programas = $pdo->query('SELECT id, nome FROM programas_afiliados ORDER BY nome')->fetchAll(PDO::FETCH_ASSOC);
@@ -370,6 +383,7 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
             $precoOriginal = floatval($oferta['preco_original']);
             $desconto = $precoOriginal > 0 ? round((($precoOriginal - $precoAtual) / $precoOriginal) * 100) : 0;
             $url_produto = 'produto.php?id=' . $oferta['id'];
+            $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
             $adminInitial = '';
             if (!empty($oferta['admin_nome'])) {
               $firstChar = function_exists('mb_substr')
@@ -405,8 +419,8 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
                   <!-- Admin -->
                   <?php if (!empty($oferta['admin_nome'])): ?>
                     <div class="admin-chip" data-bs-toggle="tooltip" data-bs-placement="top" title="Adicionado por <?= htmlspecialchars($oferta['admin_nome']) ?>">
-                      <?php if (!empty($oferta['admin_avatar'])): ?>
-                        <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Avatar de <?= htmlspecialchars($oferta['admin_nome']) ?>">
+                      <?php if (!empty($adminAvatarUrl)): ?>
+                        <img src="<?= htmlspecialchars($adminAvatarUrl) ?>" alt="Avatar de <?= htmlspecialchars($oferta['admin_nome']) ?>">
                       <?php elseif ($adminInitial !== ''): ?>
                         <div class="avatar-placeholder" aria-hidden="true"><?= htmlspecialchars($adminInitial) ?></div>
                       <?php else: ?>

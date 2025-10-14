@@ -4,6 +4,19 @@ require_once __DIR__ . '/admin/includes/price_verification.php';
 
 ensurePriceVerificationSchema($pdo);
 
+function resolvePublicAvatar(?string $path): ?string
+{
+    if (empty($path)) {
+        return null;
+    }
+
+    if (preg_match('#^https?://#i', $path)) {
+        return $path;
+    }
+
+    return '/' . ltrim($path, '/');
+}
+
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: index.php');
     exit;
@@ -79,6 +92,7 @@ if (!empty($oferta['admin_nome'])) {
             : strtoupper($firstChar);
     }
 }
+$adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
 ?>
 
 <!DOCTYPE html>
@@ -151,22 +165,18 @@ if (!empty($oferta['admin_nome'])) {
       object-fit: cover;
     }
 
-    .admin-highlight {
-      margin-top: 1.25rem;
-      display: inline-flex;
+    .admin-attribution {
+      display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 0.5rem 0.75rem;
-      background: rgba(0, 0, 0, 0.03);
-      border-radius: 999px;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
     }
 
-    .admin-highlight .avatar-wrapper {
-      width: 48px;
-      height: 48px;
+    .admin-attribution .avatar-wrapper {
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       overflow: hidden;
-      position: relative;
       box-shadow: 0 4px 12px rgba(0,0,0,0.12);
       border: 2px solid #fff;
       background: linear-gradient(135deg, #ff784e, #ff5722);
@@ -176,13 +186,13 @@ if (!empty($oferta['admin_nome'])) {
       flex-shrink: 0;
     }
 
-    .admin-highlight .avatar-wrapper img {
+    .admin-attribution .avatar-wrapper img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
 
-    .admin-highlight .avatar-placeholder {
+    .admin-attribution .avatar-placeholder {
       width: 100%;
       height: 100%;
       display: flex;
@@ -193,13 +203,14 @@ if (!empty($oferta['admin_nome'])) {
       font-size: 1rem;
     }
 
-    .admin-highlight .admin-name {
+    .admin-attribution .admin-name {
       font-weight: 600;
       color: #343a40;
       margin: 0;
+      font-size: 0.95rem;
     }
 
-    .admin-highlight .admin-label {
+    .admin-attribution .admin-label {
       display: block;
       font-size: 0.75rem;
       color: #6c757d;
@@ -258,7 +269,24 @@ if (!empty($oferta['admin_nome'])) {
     </div>
 
     <div class="col-md-6">
-      <h2><?= htmlspecialchars($oferta['titulo']) ?></h2>
+      <?php if (!empty($oferta['admin_nome'])): ?>
+        <div class="admin-attribution">
+          <div class="avatar-wrapper" data-bs-toggle="tooltip" data-bs-placement="top" title="Oferta cadastrada por <?= htmlspecialchars($oferta['admin_nome']) ?>">
+            <?php if (!empty($adminAvatarUrl)): ?>
+              <img src="<?= htmlspecialchars($adminAvatarUrl) ?>" alt="Avatar de <?= htmlspecialchars($oferta['admin_nome']) ?>">
+            <?php elseif ($adminInitial !== ''): ?>
+              <div class="avatar-placeholder" aria-hidden="true"><?= htmlspecialchars($adminInitial) ?></div>
+            <?php else: ?>
+              <div class="avatar-placeholder" aria-hidden="true"><i class="bi bi-person-fill"></i></div>
+            <?php endif; ?>
+          </div>
+          <div>
+            <span class="admin-label">Oferta cadastrada por</span>
+            <p class="admin-name mb-0"><?= htmlspecialchars($oferta['admin_nome']) ?></p>
+          </div>
+        </div>
+      <?php endif; ?>
+      <h2 class="mb-3"><?= htmlspecialchars($oferta['titulo']) ?></h2>
       <p class="mt-3"><?= nl2br(htmlspecialchars($oferta['descricao'])) ?></p>
 
       <div class="mt-4">
@@ -308,23 +336,6 @@ if (!empty($oferta['admin_nome'])) {
         </div>
       <?php endif; ?>
 
-      <?php if (!empty($oferta['admin_nome'])): ?>
-        <div class="admin-highlight">
-          <div class="avatar-wrapper" data-bs-toggle="tooltip" data-bs-placement="top" title="Oferta adicionada por <?= htmlspecialchars($oferta['admin_nome']) ?>">
-            <?php if (!empty($oferta['admin_avatar'])): ?>
-              <img src="<?= htmlspecialchars($oferta['admin_avatar']) ?>" alt="Avatar de <?= htmlspecialchars($oferta['admin_nome']) ?>">
-            <?php elseif ($adminInitial !== ''): ?>
-              <div class="avatar-placeholder" aria-hidden="true"><?= htmlspecialchars($adminInitial) ?></div>
-            <?php else: ?>
-              <div class="avatar-placeholder" aria-hidden="true"><i class="bi bi-person-fill"></i></div>
-            <?php endif; ?>
-          </div>
-          <div>
-            <span class="admin-label">Oferta adicionada por</span>
-            <p class="admin-name mb-0"><?= htmlspecialchars($oferta['admin_nome']) ?></p>
-          </div>
-        </div>
-      <?php endif; ?>
     </div>
   </div>
 
