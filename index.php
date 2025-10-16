@@ -262,6 +262,35 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
       border: 1px solid rgba(0, 0, 0, 0.06);
     }
 
+    .admin-badge[data-admin-name] {
+      position: relative;
+    }
+
+    .admin-badge[data-admin-name]::after {
+      content: attr(data-admin-name);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      transform: translateX(-50%) translateY(6px);
+      background: rgba(33, 37, 41, 0.92);
+      color: #fff;
+      padding: 0.35rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+      z-index: 5;
+    }
+
+    .admin-badge[data-admin-name]:hover::after,
+    .admin-badge[data-admin-name]:focus-visible::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
     .admin-badge .admin-avatar {
       width: 40px;
       height: 40px;
@@ -435,7 +464,7 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
                     <?php endif; ?>
 
                     <?php if (!empty($oferta['admin_nome'])): ?>
-                      <div class="admin-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Adicionado por <?= htmlspecialchars($oferta['admin_nome']) ?>">
+                      <div class="admin-badge" data-admin-name="<?= htmlspecialchars($oferta['admin_nome']) ?>" title="Adicionado por <?= htmlspecialchars($oferta['admin_nome']) ?>" aria-label="Adicionado por <?= htmlspecialchars($oferta['admin_nome']) ?>">
                         <div class="admin-avatar">
                           <?php if (!empty($adminAvatarUrl)): ?>
                             <img src="<?= htmlspecialchars($adminAvatarUrl) ?>" alt="Avatar de <?= htmlspecialchars($oferta['admin_nome']) ?>">
@@ -473,14 +502,5 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
   </div>
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-      new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-  });
-</script>
 </body>
 </html>

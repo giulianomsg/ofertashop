@@ -50,6 +50,11 @@ if (!$oferta) {
 $stmtImgs = $pdo->prepare("SELECT caminho FROM imagens_produto WHERE oferta_id = ?");
 $stmtImgs->execute([$id]);
 $imagens = $stmtImgs->fetchAll(PDO::FETCH_COLUMN);
+$galeriaImagens = $imagens;
+if (!$galeriaImagens) {
+    $galeriaImagens = [$oferta['imagem_url']];
+}
+$totalImagens = count($galeriaImagens);
 
 // Comentários aprovados
 $stmtCom = $pdo->prepare("SELECT nome, comentario, created_at FROM comentarios WHERE aprovado = 1 AND oferta_id = ? ORDER BY created_at DESC");
@@ -77,7 +82,7 @@ $metaDescription = trim(preg_replace('/\s+/', ' ', $metaDescription));
 if (mb_strlen($metaDescription) > 160) {
     $metaDescription = mb_substr($metaDescription, 0, 157) . '...';
 }
-$imagemPrincipal = count($imagens) ? $imagens[0] : $oferta['imagem_url'];
+$imagemPrincipal = $galeriaImagens[0];
 if (!preg_match('#^https?://#i', $imagemPrincipal)) {
     $imagemPrincipal = $scheme . '://' . $host . $imagemPrincipal;
 }
@@ -177,6 +182,35 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
       border: 1px solid rgba(0,0,0,0.06);
     }
 
+    .admin-badge[data-admin-name] {
+      position: relative;
+    }
+
+    .admin-badge[data-admin-name]::after {
+      content: attr(data-admin-name);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      transform: translateX(-50%) translateY(6px);
+      background: rgba(33, 37, 41, 0.92);
+      color: #fff;
+      padding: 0.35rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+      z-index: 5;
+    }
+
+    .admin-badge[data-admin-name]:hover::after,
+    .admin-badge[data-admin-name]:focus-visible::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
     .admin-badge .admin-avatar {
       width: 38px;
       height: 38px;
@@ -202,15 +236,173 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
       color: #343a40;
       font-size: 0.92rem;
     }
-    .carousel-inner img {
+    .produto-galeria {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .galeria-principal {
+      position: relative;
+      min-height: 320px;
+      background: #fff;
+      border-radius: 0.75rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .galeria-imagem {
+      display: none;
+      max-height: 420px;
+      width: 100%;
       object-fit: contain;
-      max-height: 400px;
       cursor: zoom-in;
+      border-radius: 0.5rem;
+      transition: opacity 0.25s ease;
     }
-    .modal-img {
-      max-width: 100%;
-      height: auto;
+
+    .galeria-imagem.ativo {
+      display: block;
     }
+
+    .galeria-controles {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+    }
+
+    .galeria-controles button {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid #dee2e6;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+      color: #ff5722;
+      font-size: 1.2rem;
+    }
+
+    .galeria-controles button:hover {
+      background: #f8f9fa;
+      transform: translateY(-2px);
+    }
+
+    .galeria-status {
+      font-weight: 600;
+      color: #495057;
+      font-size: 0.95rem;
+    }
+
+    .galeria-miniaturas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: center;
+    }
+
+    .galeria-miniaturas button {
+      border: 2px solid transparent;
+      border-radius: 0.6rem;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .galeria-miniaturas button img {
+      width: 72px;
+      height: 72px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .galeria-miniaturas button.ativo {
+      border-color: #ff5722;
+      transform: translateY(-2px);
+    }
+
+    .zoom-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      z-index: 1080;
+    }
+
+    .zoom-overlay.is-visible {
+      display: flex;
+    }
+
+    .zoom-overlay img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 0.75rem;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+    }
+
+    .zoom-close {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      font-size: 1.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    }
+
+    .zoom-close:hover {
+      background: rgba(0,0,0,0.85);
+    }
+
+    body.no-scroll {
+      overflow: hidden;
+    }
+
+    .toast-container {
+      z-index: 1080;
+    }
+
+    .toast {
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast .btn-close {
+      opacity: 0.6;
+      transition: opacity 0.2s ease;
+    }
+
+    .toast .btn-close:hover {
+      opacity: 1;
+    }
+
     .comentario {
       background: #fff;
       padding: 1rem;
@@ -230,33 +422,37 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
 
 <main class="container py-5">
   <div class="produto-container row g-4">
-    <div class="col-md-6 text-center">
-      <?php if (count($imagens)): ?>
-        <div id="carouselProduto" class="carousel slide" data-bs-ride="carousel">
-          <div class="carousel-inner">
-            <?php foreach ($imagens as $i => $img): ?>
-              <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
-                <img src="<?= htmlspecialchars($img) ?>" class="d-block w-100 rounded" alt="Imagem <?= $i + 1 ?>" onclick="abrirModal(this.src)">
-              </div>
+    <div class="col-md-6">
+      <div class="produto-galeria">
+        <div class="galeria-principal">
+          <?php foreach ($galeriaImagens as $i => $img): ?>
+            <img src="<?= htmlspecialchars($img, ENT_QUOTES, 'UTF-8') ?>" class="galeria-imagem <?= $i === 0 ? 'ativo' : '' ?>" data-index="<?= $i ?>" data-zoom-src="<?= htmlspecialchars($img, ENT_QUOTES, 'UTF-8') ?>" alt="Imagem <?= $i + 1 ?>" aria-hidden="<?= $i === 0 ? 'false' : 'true' ?>">
+          <?php endforeach; ?>
+        </div>
+        <?php if ($totalImagens > 1): ?>
+          <div class="galeria-controles">
+            <button type="button" class="galeria-prev" aria-label="Imagem anterior">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <div class="galeria-status"><span class="galeria-atual">1</span> / <?= $totalImagens ?></div>
+            <button type="button" class="galeria-next" aria-label="Próxima imagem">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+          <div class="galeria-miniaturas">
+            <?php foreach ($galeriaImagens as $i => $img): ?>
+              <button type="button" class="miniatura <?= $i === 0 ? 'ativo' : '' ?>" data-index="<?= $i ?>" aria-label="Mostrar imagem <?= $i + 1 ?>">
+                <img src="<?= htmlspecialchars($img, ENT_QUOTES, 'UTF-8') ?>" alt="Miniatura <?= $i + 1 ?>">
+              </button>
             <?php endforeach; ?>
           </div>
-          <?php if (count($imagens) > 1): ?>
-            <button class="carousel-control-prev" type="button" data-bs-target="#carouselProduto" data-bs-slide="prev">
-              <span class="carousel-control-prev-icon"></span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#carouselProduto" data-bs-slide="next">
-              <span class="carousel-control-next-icon"></span>
-            </button>
-          <?php endif; ?>
-        </div>
-      <?php else: ?>
-        <img src="<?= htmlspecialchars($oferta['imagem_url']) ?>" class="img-fluid rounded" alt="Produto">
-      <?php endif; ?>
+        <?php endif; ?>
+      </div>
     </div>
 
     <div class="col-md-6">
       <?php if (!empty($oferta['admin_nome'])): ?>
-        <div class="admin-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Oferta cadastrada por <?= htmlspecialchars($oferta['admin_nome']) ?>">
+        <div class="admin-badge" data-admin-name="<?= htmlspecialchars($oferta['admin_nome']) ?>" title="Oferta cadastrada por <?= htmlspecialchars($oferta['admin_nome']) ?>" aria-label="Oferta cadastrada por <?= htmlspecialchars($oferta['admin_nome']) ?>">
           <div class="admin-avatar">
             <?php if (!empty($adminAvatarUrl)): ?>
               <img src="<?= htmlspecialchars($adminAvatarUrl) ?>" alt="Avatar de <?= htmlspecialchars($oferta['admin_nome']) ?>">
@@ -357,14 +553,9 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
 </main>
 
 <!-- Modal de Zoom -->
-<div class="modal fade" id="zoomModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content bg-dark text-white text-center">
-      <div class="modal-body">
-        <img src="" id="imgZoom" class="modal-img" alt="Zoom">
-      </div>
-    </div>
-  </div>
+<div id="zoomOverlay" class="zoom-overlay" aria-hidden="true">
+  <button type="button" class="zoom-close" aria-label="Fechar visualização ampliada">&times;</button>
+  <img src="" id="zoomOverlayImg" alt="Visualização ampliada">
 </div>
 
 <footer class="text-center py-4 mt-5 bg-dark text-white">
@@ -373,39 +564,160 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
   </div>
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <?php if ($comentarioEnviado): ?>
 <div class="toast-container position-fixed top-0 end-0 p-3">
-  <div id="comentarioToast" class="toast align-items-center text-bg-success border-0" role="status" aria-live="polite" aria-atomic="true" data-bs-delay="5000" data-bs-autohide="true">
+  <div id="comentarioToast" class="toast align-items-center text-bg-success border-0" role="status" aria-live="polite" aria-atomic="true">
     <div class="d-flex">
       <div class="toast-body">
         Seu comentário foi enviado e será exibido após análise.
       </div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-close-toast aria-label="Fechar"></button>
     </div>
   </div>
 </div>
 <?php endif; ?>
 
 <script>
-function abrirModal(src) {
-  const modal = new bootstrap.Modal(document.getElementById('zoomModal'));
-  document.getElementById('imgZoom').src = src;
-  modal.show();
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle=\"tooltip\"]'));
-  tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-    new bootstrap.Tooltip(tooltipTriggerEl);
-  });
-
-  var toastEl = document.getElementById('comentarioToast');
-  if (toastEl) {
-    var toast = bootstrap.Toast.getOrCreateInstance(toastEl);
-    toast.show();
+(function () {
+  function onReady(callback) {
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      callback();
+    } else {
+      document.addEventListener('DOMContentLoaded', callback, { once: true });
+    }
   }
-});
+
+  onReady(function () {
+    const overlay = document.getElementById('zoomOverlay');
+    const overlayImg = document.getElementById('zoomOverlayImg');
+    const overlayCloseBtn = overlay ? overlay.querySelector('.zoom-close') : null;
+
+    function closeZoom() {
+      if (!overlay || !overlayImg) {
+        return;
+      }
+      overlay.classList.remove('is-visible');
+      overlay.setAttribute('aria-hidden', 'true');
+      overlayImg.removeAttribute('src');
+      document.body.classList.remove('no-scroll');
+    }
+
+    function openZoom(src) {
+      if (!overlay || !overlayImg) {
+        return;
+      }
+      overlayImg.src = src;
+      overlay.classList.add('is-visible');
+      overlay.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('no-scroll');
+    }
+
+    if (overlay) {
+      overlay.addEventListener('click', function (event) {
+        if (event.target === overlay) {
+          closeZoom();
+        }
+      });
+    }
+
+    if (overlayCloseBtn) {
+      overlayCloseBtn.addEventListener('click', closeZoom);
+    }
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && overlay && overlay.classList.contains('is-visible')) {
+        closeZoom();
+      }
+    });
+
+    const gallery = document.querySelector('.produto-galeria');
+    if (gallery) {
+      const images = Array.from(gallery.querySelectorAll('.galeria-imagem'));
+      const thumbs = Array.from(gallery.querySelectorAll('.miniatura'));
+      const prevBtn = gallery.querySelector('.galeria-prev');
+      const nextBtn = gallery.querySelector('.galeria-next');
+      const statusCurrent = gallery.querySelector('.galeria-atual');
+      let currentIndex = images.findIndex((img) => img.classList.contains('ativo'));
+      if (currentIndex < 0) {
+        currentIndex = 0;
+      }
+
+      function setActive(index) {
+        if (!images.length) {
+          return;
+        }
+        const total = images.length;
+        currentIndex = (index + total) % total;
+        images.forEach((img, i) => {
+          const isActive = i === currentIndex;
+          img.classList.toggle('ativo', isActive);
+          img.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+        });
+        thumbs.forEach((thumb, i) => {
+          thumb.classList.toggle('ativo', i === currentIndex);
+        });
+        if (statusCurrent) {
+          statusCurrent.textContent = currentIndex + 1;
+        }
+      }
+
+      images.forEach((img) => {
+        img.addEventListener('click', function () {
+          const zoomSrc = img.dataset.zoomSrc || img.src;
+          openZoom(zoomSrc);
+        });
+      });
+
+      thumbs.forEach((thumb) => {
+        thumb.addEventListener('click', function () {
+          const idx = parseInt(thumb.dataset.index, 10);
+          if (!Number.isNaN(idx)) {
+            setActive(idx);
+          }
+        });
+      });
+
+      if (prevBtn) {
+        prevBtn.addEventListener('click', function () {
+          setActive(currentIndex - 1);
+        });
+      }
+
+      if (nextBtn) {
+        nextBtn.addEventListener('click', function () {
+          setActive(currentIndex + 1);
+        });
+      }
+
+      setActive(currentIndex);
+    }
+
+    const toastEl = document.getElementById('comentarioToast');
+    if (toastEl) {
+      const closeBtn = toastEl.querySelector('[data-close-toast]');
+      let hideTimeout = null;
+
+      const showToast = function () {
+        toastEl.classList.add('is-visible');
+      };
+
+      const hideToast = function () {
+        toastEl.classList.remove('is-visible');
+        if (hideTimeout) {
+          clearTimeout(hideTimeout);
+          hideTimeout = null;
+        }
+      };
+
+      showToast();
+      hideTimeout = setTimeout(hideToast, 5000);
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', hideToast);
+      }
+    }
+  });
+})();
 </script>
 </body>
 </html>
