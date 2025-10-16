@@ -73,15 +73,25 @@ if (!function_exists('ensurePriceVerificationSchema')) {
                 return $this->registrarFalha($ofertaId, (float) $oferta['preco_atual'], 'Link de afiliado não informado.', null, null);
             }
 
-            [$conteudo, $httpCode, $erro] = $this->obterConteudoRemoto($oferta['link_afiliado']);
+            [$conteudo, $httpCode, $erro, $urlFinal] = $this->obterConteudoRemoto($oferta['link_afiliado']);
 
             if ($conteudo === null) {
                 $mensagem = $erro ?: 'Não foi possível acessar o link do afiliado.';
-                return $this->registrarFalha($ofertaId, (float) $oferta['preco_atual'], $mensagem, $httpCode, $oferta['link_afiliado']);
+                $fonteFalha = parse_url($urlFinal ?? $oferta['link_afiliado'], PHP_URL_HOST)
+                    ?: ($urlFinal ?? $oferta['link_afiliado']);
+
+                return $this->registrarFalha(
+                    $ofertaId,
+                    (float) $oferta['preco_atual'],
+                    $mensagem,
+                    $httpCode,
+                    $fonteFalha
+                );
             }
 
-            $host = parse_url($oferta['link_afiliado'], PHP_URL_HOST) ?: '';
-            $precoEncontrado = $this->extrairPreco($conteudo, $host);
+            $urlParaProcessar = $urlFinal ?? $oferta['link_afiliado'];
+            $host = parse_url($urlParaProcessar, PHP_URL_HOST) ?: '';
+            $precoEncontrado = $this->extrairPreco($conteudo, $host, $urlParaProcessar);
 
             if ($precoEncontrado === null) {
                 return $this->registrarFalha($ofertaId, (float) $oferta['preco_atual'], 'Não foi possível localizar o preço na página.', $httpCode, $host);
@@ -166,17 +176,18 @@ if (!function_exists('ensurePriceVerificationSchema')) {
 
             $conteudo = curl_exec($curl);
             $httpCode = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $urlFinal = curl_getinfo($curl, CURLINFO_EFFECTIVE_URL) ?: $url;
             $erro = curl_error($curl) ?: null;
             curl_close($curl);
 
             if ($conteudo === false || $httpCode >= 400) {
-                return [null, $httpCode, $erro];
+                return [null, $httpCode, $erro, $urlFinal];
             }
 
-            return [$conteudo, $httpCode, null];
+            return [$conteudo, $httpCode, null, $urlFinal];
         }
 
-        private function extrairPreco(string $conteudo, string $host): ?float
+        private function extrairPreco(string $conteudo, string $host, ?string $urlFinal): ?float
         {
             $conteudo = html_entity_decode($conteudo, ENT_QUOTES | ENT_HTML5);
 
@@ -190,6 +201,10 @@ if (!function_exists('ensurePriceVerificationSchema')) {
             }
 
             if (stripos($host, 'shopee.') !== false) {
+                $precoViaApi = $this->extrairPrecoShopeePorApi($urlFinal, $conteudo);
+                if ($precoViaApi !== null) {
+                    return $precoViaApi;
+                }
                 if (preg_match('/"price":\s*([0-9]+(?:\.[0-9]+)?)/', $conteudo, $match)) {
                     $valor = (float) $match[1];
                     if ($valor > 10000) {
@@ -209,6 +224,96 @@ if (!function_exists('ensurePriceVerificationSchema')) {
 
             if (preg_match('/"amount"\s*:\s*([0-9]+(?:\.[0-9]+)?)/', $conteudo, $match)) {
                 return (float) $match[1];
+            }
+
+            return null;
+        }
+
+        private function extrairPrecoShopeePorApi(?string $urlFinal, string $conteudo): ?float
+        {
+            $ids = $this->identificarShopeeIds($urlFinal, $conteudo);
+            if ($ids === null) {
+                return null;
+            }
+
+            [$shopId, $itemId] = $ids;
+            $endpoint = sprintf('https://shopee.com.br/api/v4/item/get?itemid=%d&shopid=%d', $itemId, $shopId);
+
+            $curl = curl_init($endpoint);
+            curl_setopt_array($curl, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_USERAGENT => self::USER_AGENT,
+                CURLOPT_HTTPHEADER => array_filter([
+                    'Accept: application/json',
+                    'Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+                    $urlFinal ? 'Referer: ' . $urlFinal : null,
+                ]),
+            ]);
+
+            $resposta = curl_exec($curl);
+            $httpCode = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            curl_close($curl);
+
+            if ($resposta === false || $httpCode >= 400) {
+                return null;
+            }
+
+            $dados = json_decode($resposta, true);
+            if (!is_array($dados)) {
+                return null;
+            }
+
+            $item = $dados['data']['item'] ?? null;
+            if (!is_array($item)) {
+                return null;
+            }
+
+            $valorBruto = $item['price_min']
+                ?? $item['price']
+                ?? $item['price_max']
+                ?? null;
+
+            if (!is_numeric($valorBruto)) {
+                return null;
+            }
+
+            $valor = (float) $valorBruto;
+            if ($valor > 0) {
+                $valor = $valor / 100000;
+            }
+
+            return round($valor, 2);
+        }
+
+        private function identificarShopeeIds(?string $urlFinal, string $conteudo): ?array
+        {
+            $candidatos = [];
+
+            if ($urlFinal) {
+                $candidatos[] = $urlFinal;
+            }
+
+            if (preg_match('/href="([^"]*shopee\.[^"]+)"/', $conteudo, $match)) {
+                $candidatos[] = html_entity_decode($match[1], ENT_QUOTES | ENT_HTML5);
+            }
+
+            foreach ($candidatos as $url) {
+                if (preg_match('/i\.(\d+)\.(\d+)/', $url, $ids)) {
+                    return [(int) $ids[1], (int) $ids[2]];
+                }
+
+                if (preg_match('/product\/(\d+)\/(\d+)/', $url, $ids)) {
+                    return [(int) $ids[1], (int) $ids[2]];
+                }
+            }
+
+            if (preg_match('/\bshopid\s*=\s*"?(\d+)"?/', $conteudo, $idsShop)
+                && preg_match('/\bitemid\s*=\s*"?(\d+)"?/', $conteudo, $idsItem)) {
+                return [(int) $idsShop[1], (int) $idsItem[1]];
             }
 
             return null;
