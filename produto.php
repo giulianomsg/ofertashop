@@ -461,6 +461,7 @@ if (!$relatedOffers) {
       height: 100%;
       display: flex;
       flex-direction: column;
+      position: relative;
     }
 
     .relacionadas-card:hover {
