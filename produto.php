@@ -17,6 +17,25 @@ function resolvePublicAvatar(?string $path): ?string
     return '/' . ltrim($path, '/');
 }
 
+function getAdminInitial(?string $name): string
+{
+    if (empty($name)) {
+        return '';
+    }
+
+    $firstChar = function_exists('mb_substr')
+        ? mb_substr($name, 0, 1, 'UTF-8')
+        : substr($name, 0, 1);
+
+    if ($firstChar === false || $firstChar === '') {
+        return '';
+    }
+
+    return function_exists('mb_strtoupper')
+        ? mb_strtoupper($firstChar, 'UTF-8')
+        : strtoupper($firstChar);
+}
+
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: index.php');
     exit;
@@ -86,18 +105,23 @@ $imagemPrincipal = $galeriaImagens[0];
 if (!preg_match('#^https?://#i', $imagemPrincipal)) {
     $imagemPrincipal = $scheme . '://' . $host . $imagemPrincipal;
 }
-$adminInitial = '';
-if (!empty($oferta['admin_nome'])) {
-    $firstChar = function_exists('mb_substr')
-        ? mb_substr($oferta['admin_nome'], 0, 1, 'UTF-8')
-        : substr($oferta['admin_nome'], 0, 1);
-    if ($firstChar !== false) {
-        $adminInitial = function_exists('mb_strtoupper')
-            ? mb_strtoupper($firstChar, 'UTF-8')
-            : strtoupper($firstChar);
-    }
-}
+$adminInitial = getAdminInitial($oferta['admin_nome'] ?? null);
 $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
+
+$relatedOffers = [];
+$categoriaId = $oferta['categoria_id'] ?? null;
+
+if (!empty($categoriaId)) {
+    $stmtRelacionadas = $pdo->prepare("SELECT o.id, o.titulo, o.preco_atual, o.preco_original, o.imagem_url, o.link_afiliado, c.nome AS categoria, a.nome AS admin_nome, a.avatar AS admin_avatar FROM ofertas o LEFT JOIN categorias c ON o.categoria_id = c.id LEFT JOIN admins a ON o.admin_id = a.id WHERE o.categoria_id = ? AND o.id <> ? AND o.ativo = 1 ORDER BY o.created_at DESC LIMIT 4");
+    $stmtRelacionadas->execute([$categoriaId, $id]);
+    $relatedOffers = $stmtRelacionadas->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+if (!$relatedOffers) {
+    $stmtRelacionadas = $pdo->prepare("SELECT o.id, o.titulo, o.preco_atual, o.preco_original, o.imagem_url, o.link_afiliado, c.nome AS categoria, a.nome AS admin_nome, a.avatar AS admin_avatar FROM ofertas o LEFT JOIN categorias c ON o.categoria_id = c.id LEFT JOIN admins a ON o.admin_id = a.id WHERE o.id <> ? AND o.ativo = 1 ORDER BY o.created_at DESC LIMIT 4");
+    $stmtRelacionadas->execute([$id]);
+    $relatedOffers = $stmtRelacionadas->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
 ?>
 
 <!DOCTYPE html>
@@ -168,6 +192,23 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
       height: 32px;
       border-radius: 50%;
       object-fit: cover;
+    }
+
+    .categoria-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(255, 87, 34, 0.1);
+      color: #ff5722;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    .categoria-badge i {
+      font-size: 1rem;
     }
 
     .admin-badge {
@@ -410,6 +451,82 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
       margin-bottom: 1rem;
       box-shadow: 0 0 5px rgba(0,0,0,0.05);
     }
+
+    .relacionadas-card {
+      background: #ffffff;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .relacionadas-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 22px 50px rgba(0,0,0,0.12);
+    }
+
+    .relacionadas-card img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+    }
+
+    .relacionadas-card .card-body {
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+    }
+
+    .relacionadas-card .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .relacionadas-card .card-price {
+      font-weight: 700;
+      color: #28a745;
+    }
+
+    .relacionadas-card .card-price-old {
+      color: #adb5bd;
+      text-decoration: line-through;
+      font-size: 0.9rem;
+    }
+
+    .relacionadas-card .card-discount {
+      font-size: 0.85rem;
+      color: #dc3545;
+      font-weight: 600;
+    }
+
+    .relacionadas-card .card-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid rgba(0,0,0,0.05);
+      background: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .relacionadas-card .admin-badge {
+      margin-bottom: 0;
+      box-shadow: none;
+      background: rgba(248, 249, 250, 0.95);
+      border: 1px solid rgba(0,0,0,0.04);
+    }
+
+    @media (max-width: 991.98px) {
+      .relacionadas-card img {
+        height: 200px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -451,6 +568,10 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
     </div>
 
     <div class="col-md-6">
+      <?php if (!empty($oferta['categoria'])): ?>
+        <div class="categoria-badge"><i class="bi bi-tag-fill"></i> <?= htmlspecialchars($oferta['categoria']) ?></div>
+      <?php endif; ?>
+
       <?php if (!empty($oferta['admin_nome'])): ?>
         <div class="admin-badge" data-admin-name="<?= htmlspecialchars($oferta['admin_nome']) ?>" title="Oferta cadastrada por <?= htmlspecialchars($oferta['admin_nome']) ?>" aria-label="Oferta cadastrada por <?= htmlspecialchars($oferta['admin_nome']) ?>">
           <div class="admin-avatar">
@@ -517,6 +638,75 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
 
     </div>
   </div>
+
+  <?php if (!empty($relatedOffers)): ?>
+    <section class="mt-5">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+        <h3 class="mb-0">Promoções Relacionadas</h3>
+        <?php if (!empty($oferta['categoria'])): ?>
+          <span class="text-muted small">Baseado na categoria "<?= htmlspecialchars($oferta['categoria']) ?>"</span>
+        <?php endif; ?>
+      </div>
+      <div class="row g-4">
+        <?php foreach ($relatedOffers as $relacionada): ?>
+          <?php
+            $relImage = $relacionada['imagem_url'] ?? '';
+            if (!empty($relImage) && !preg_match('#^https?://#i', $relImage)) {
+                $relImage = '/' . ltrim($relImage, '/');
+            }
+            $relPrecoAtual = isset($relacionada['preco_atual']) ? (float) $relacionada['preco_atual'] : 0.0;
+            $relPrecoOriginal = isset($relacionada['preco_original']) ? (float) $relacionada['preco_original'] : 0.0;
+            $relDesconto = ($relPrecoOriginal > 0 && $relPrecoOriginal > $relPrecoAtual)
+                ? round((($relPrecoOriginal - $relPrecoAtual) / $relPrecoOriginal) * 100)
+                : 0;
+            $relAdminAvatar = resolvePublicAvatar($relacionada['admin_avatar'] ?? null);
+            $relAdminInitial = getAdminInitial($relacionada['admin_nome'] ?? null);
+          ?>
+          <div class="col-md-6 col-xl-3">
+            <article class="relacionadas-card">
+              <a href="produto.php?id=<?= (int) $relacionada['id'] ?>" class="d-block">
+                <img src="<?= htmlspecialchars($relImage) ?>" alt="<?= htmlspecialchars($relacionada['titulo']) ?>">
+              </a>
+              <div class="card-body">
+                <?php if (!empty($relacionada['categoria'])): ?>
+                  <span class="categoria-badge"><i class="bi bi-tag-fill"></i> <?= htmlspecialchars($relacionada['categoria']) ?></span>
+                <?php endif; ?>
+                <h5 class="card-title">
+                  <a href="produto.php?id=<?= (int) $relacionada['id'] ?>" class="stretched-link text-decoration-none text-reset">
+                    <?= htmlspecialchars($relacionada['titulo']) ?>
+                  </a>
+                </h5>
+                <div class="card-price">R$ <?= number_format($relPrecoAtual, 2, ',', '.') ?></div>
+                <?php if ($relDesconto > 0): ?>
+                  <div class="card-price-old">R$ <?= number_format($relPrecoOriginal, 2, ',', '.') ?></div>
+                  <div class="card-discount">Economize <?= $relDesconto ?>%</div>
+                <?php elseif ($relPrecoOriginal > 0 && $relPrecoOriginal <= $relPrecoAtual): ?>
+                  <div class="card-price-old text-muted">Preço original: R$ <?= number_format($relPrecoOriginal, 2, ',', '.') ?></div>
+                <?php endif; ?>
+              </div>
+              <div class="card-footer">
+                <?php if (!empty($relacionada['admin_nome'])): ?>
+                  <div class="admin-badge" data-admin-name="<?= htmlspecialchars($relacionada['admin_nome']) ?>" title="Oferta cadastrada por <?= htmlspecialchars($relacionada['admin_nome']) ?>" aria-label="Oferta cadastrada por <?= htmlspecialchars($relacionada['admin_nome']) ?>">
+                    <div class="admin-avatar">
+                      <?php if (!empty($relAdminAvatar)): ?>
+                        <img src="<?= htmlspecialchars($relAdminAvatar) ?>" alt="Avatar de <?= htmlspecialchars($relacionada['admin_nome']) ?>">
+                      <?php elseif ($relAdminInitial !== ''): ?>
+                        <?= htmlspecialchars($relAdminInitial) ?>
+                      <?php else: ?>
+                        <i class="bi bi-person-fill"></i>
+                      <?php endif; ?>
+                    </div>
+                    <span class="admin-name"><?= htmlspecialchars($relacionada['admin_nome']) ?></span>
+                  </div>
+                <?php endif; ?>
+                <a href="produto.php?id=<?= (int) $relacionada['id'] ?>" class="btn btn-sm btn-outline-primary">Ver detalhes</a>
+              </div>
+            </article>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </section>
+  <?php endif; ?>
 
   <hr class="my-5">
 
