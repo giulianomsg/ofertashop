@@ -60,7 +60,15 @@ $ofertas = $stmt->fetchAll(PDO::FETCH_ASSOC);
           <?php foreach ($ofertas as $oferta): ?>
             <tr>
               <td><?= $oferta['id'] ?></td>
-              <td><?= htmlspecialchars($oferta['titulo']) ?></td>
+              <td>
+                <?php if (!empty($oferta['link_afiliado'])): ?>
+                  <a href="<?= htmlspecialchars($oferta['link_afiliado']) ?>" target="_blank" rel="noopener noreferrer">
+                    <?= htmlspecialchars($oferta['titulo']) ?>
+                  </a>
+                <?php else: ?>
+                  <?= htmlspecialchars($oferta['titulo']) ?>
+                <?php endif; ?>
+              </td>
               <td><?= htmlspecialchars($oferta['categoria']) ?></td>
               <td>R$ <?= number_format($oferta['preco_atual'], 2, ',', '.') ?></td>
               <td><s>R$ <?= number_format($oferta['preco_original'], 2, ',', '.') ?></s></td>
