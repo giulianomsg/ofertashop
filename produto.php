@@ -165,56 +165,42 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
       object-fit: cover;
     }
 
-    .admin-attribution {
-      display: flex;
+    .admin-badge {
+      display: inline-flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.55rem;
       margin-bottom: 1rem;
+      padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.1);
+      border: 1px solid rgba(0,0,0,0.06);
     }
 
-    .admin-attribution .avatar-wrapper {
-      width: 36px;
-      height: 36px;
+    .admin-badge .admin-avatar {
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-      border: 2px solid #fff;
       background: linear-gradient(135deg, #ff784e, #ff5722);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .admin-attribution .avatar-wrapper img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .admin-attribution .avatar-placeholder {
-      width: 100%;
-      height: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
       color: #fff;
       font-weight: 600;
-      font-size: 0.85rem;
+      flex-shrink: 0;
     }
 
-    .admin-attribution .admin-name {
+    .admin-badge .admin-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .admin-badge .admin-name {
       font-weight: 600;
       color: #343a40;
-      margin: 0;
-      font-size: 0.9rem;
-    }
-
-    .admin-attribution .admin-label {
-      display: block;
-      font-size: 0.7rem;
-      color: #6c757d;
-      line-height: 1.1;
+      font-size: 0.92rem;
     }
     .carousel-inner img {
       object-fit: contain;
@@ -270,20 +256,17 @@ $adminAvatarUrl = resolvePublicAvatar($oferta['admin_avatar'] ?? null);
 
     <div class="col-md-6">
       <?php if (!empty($oferta['admin_nome'])): ?>
-        <div class="admin-attribution">
-          <div class="avatar-wrapper" data-bs-toggle="tooltip" data-bs-placement="top" title="Oferta cadastrada por <?= htmlspecialchars($oferta['admin_nome']) ?>">
+        <div class="admin-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Oferta cadastrada por <?= htmlspecialchars($oferta['admin_nome']) ?>">
+          <div class="admin-avatar">
             <?php if (!empty($adminAvatarUrl)): ?>
               <img src="<?= htmlspecialchars($adminAvatarUrl) ?>" alt="Avatar de <?= htmlspecialchars($oferta['admin_nome']) ?>">
             <?php elseif ($adminInitial !== ''): ?>
-              <div class="avatar-placeholder" aria-hidden="true"><?= htmlspecialchars($adminInitial) ?></div>
+              <?= htmlspecialchars($adminInitial) ?>
             <?php else: ?>
-              <div class="avatar-placeholder" aria-hidden="true"><i class="bi bi-person-fill"></i></div>
+              <i class="bi bi-person-fill"></i>
             <?php endif; ?>
           </div>
-          <div>
-            <span class="admin-label">Oferta cadastrada por</span>
-            <p class="admin-name mb-0"><?= htmlspecialchars($oferta['admin_nome']) ?></p>
-          </div>
+          <span class="admin-name"><?= htmlspecialchars($oferta['admin_nome']) ?></span>
         </div>
       <?php endif; ?>
       <h2 class="mb-3"><?= htmlspecialchars($oferta['titulo']) ?></h2>

@@ -164,7 +164,7 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
       padding: 1rem;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      gap: 1rem;
       overflow: hidden;
     }
 
@@ -239,44 +239,53 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
       padding-bottom: 4.5rem;
     }
 
-    .admin-chip {
-      position: absolute;
-      bottom: 1rem;
-      right: 1rem;
-      width: 50px;
-      height: 50px;
+    .product-front-footer {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .product-front-body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .admin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .admin-badge .admin-avatar {
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
-      background: #ffffff;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+      overflow: hidden;
+      background: linear-gradient(135deg, #ff784e, #ff5722);
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 2px solid rgba(255, 255, 255, 0.7);
-      z-index: 5;
+      color: #fff;
+      font-weight: 600;
+      flex-shrink: 0;
     }
 
-    .admin-chip img {
+    .admin-badge .admin-avatar img {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
       object-fit: cover;
     }
 
-    .admin-chip .avatar-placeholder {
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .admin-badge .admin-name {
+      font-size: 0.9rem;
       font-weight: 600;
-      color: #fff;
-      background: linear-gradient(135deg, #ff784e, #ff5722);
-      font-size: 1.1rem;
-    }
-
-    .admin-chip .avatar-placeholder i {
-      font-size: 1.35rem;
+      color: #343a40;
     }
 
     footer {
@@ -408,32 +417,38 @@ if (!preg_match('#^https?://#i', $ogImagePath)) {
                     </div>
                   <?php endif; ?>
 
-                  <img src="<?= htmlspecialchars($oferta['imagem_url']) ?>" class="img-fluid mb-3 rounded" alt="Imagem do produto">
-                  <div class="product-title"><?= htmlspecialchars($oferta['titulo']) ?></div>
-                  <div class="price">R$ <?= number_format($precoAtual, 2, ',', '.') ?></div>
-                  <?php if ($precoOriginal > $precoAtual): ?>
-                    <div class="old-price">R$ <?= number_format($precoOriginal, 2, ',', '.') ?></div>
-                    <div class="discount">-<?= $desconto ?>%</div>
-                  <?php endif; ?>
+                  <div class="product-front-body">
+                    <img src="<?= htmlspecialchars($oferta['imagem_url']) ?>" class="img-fluid mb-3 rounded" alt="Imagem do produto">
+                    <div class="product-title"><?= htmlspecialchars($oferta['titulo']) ?></div>
+                    <div class="price">R$ <?= number_format($precoAtual, 2, ',', '.') ?></div>
+                    <?php if ($precoOriginal > $precoAtual): ?>
+                      <div class="old-price">R$ <?= number_format($precoOriginal, 2, ',', '.') ?></div>
+                      <div class="discount">-<?= $desconto ?>%</div>
+                    <?php endif; ?>
+                  </div>
 
-                  <!-- Admin -->
-                  <?php if (!empty($oferta['admin_nome'])): ?>
-                    <div class="admin-chip" data-bs-toggle="tooltip" data-bs-placement="top" title="Adicionado por <?= htmlspecialchars($oferta['admin_nome']) ?>">
-                      <?php if (!empty($adminAvatarUrl)): ?>
-                        <img src="<?= htmlspecialchars($adminAvatarUrl) ?>" alt="Avatar de <?= htmlspecialchars($oferta['admin_nome']) ?>">
-                      <?php elseif ($adminInitial !== ''): ?>
-                        <div class="avatar-placeholder" aria-hidden="true"><?= htmlspecialchars($adminInitial) ?></div>
-                      <?php else: ?>
-                        <div class="avatar-placeholder" aria-hidden="true"><i class="bi bi-person-fill"></i></div>
-                      <?php endif; ?>
-                    </div>
-                  <?php endif; ?>
+                  <div class="product-front-footer">
+                    <?php if (!empty($oferta['melhor_preco']) && $oferta['melhor_preco'] < $precoAtual): ?>
+                      <div class="alert alert-success py-2 px-3 small mb-0">
+                        Melhor preço verificado: <strong>R$ <?= number_format((float) $oferta['melhor_preco'], 2, ',', '.') ?></strong>
+                      </div>
+                    <?php endif; ?>
 
-                  <?php if (!empty($oferta['melhor_preco']) && $oferta['melhor_preco'] < $precoAtual): ?>
-                    <div class="mt-3 alert alert-success py-2 px-3 small">
-                      Melhor preço verificado: <strong>R$ <?= number_format((float) $oferta['melhor_preco'], 2, ',', '.') ?></strong>
-                    </div>
-                  <?php endif; ?>
+                    <?php if (!empty($oferta['admin_nome'])): ?>
+                      <div class="admin-badge" data-bs-toggle="tooltip" data-bs-placement="top" title="Adicionado por <?= htmlspecialchars($oferta['admin_nome']) ?>">
+                        <div class="admin-avatar">
+                          <?php if (!empty($adminAvatarUrl)): ?>
+                            <img src="<?= htmlspecialchars($adminAvatarUrl) ?>" alt="Avatar de <?= htmlspecialchars($oferta['admin_nome']) ?>">
+                          <?php elseif ($adminInitial !== ''): ?>
+                            <?= htmlspecialchars($adminInitial) ?>
+                          <?php else: ?>
+                            <i class="bi bi-person-fill"></i>
+                          <?php endif; ?>
+                        </div>
+                        <span class="admin-name"><?= htmlspecialchars($oferta['admin_nome']) ?></span>
+                      </div>
+                    <?php endif; ?>
+                  </div>
                 </div>
 
                 <!-- Verso -->
