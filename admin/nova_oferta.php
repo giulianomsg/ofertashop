@@ -7,6 +7,18 @@ if (!isset($_SESSION['admin'])) {
     exit;
 }
 
+$adminId = null;
+if (!empty($_SESSION['admin_id'])) {
+    $adminId = (int) $_SESSION['admin_id'];
+} elseif (!empty($_SESSION['admin_nome'])) {
+    $adminLookup = $pdo->prepare('SELECT id FROM admins WHERE nome = ? LIMIT 1');
+    $adminLookup->execute([$_SESSION['admin_nome']]);
+    $adminId = $adminLookup->fetchColumn() ?: null;
+    if ($adminId) {
+        $_SESSION['admin_id'] = (int) $adminId;
+    }
+}
+
 $erro = '';
 $sucesso = '';
 
@@ -50,13 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$erro) {
             // Inserir a oferta sem imagem ainda
-            $stmt = $pdo->prepare("INSERT INTO ofertas 
-                (titulo, descricao_resumida, descricao, imagem_url, preco_atual, preco_original, link_afiliado, categoria_id, programa_id, ativo, created_at)
-                VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, 1, NOW())");
+            $stmt = $pdo->prepare("INSERT INTO ofertas
+                (titulo, descricao_resumida, descricao, imagem_url, preco_atual, preco_original, link_afiliado, categoria_id, programa_id, admin_id, ativo, created_at)
+                VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?, 1, NOW())");
             $stmt->execute([
                 $titulo, $descricao_resumida, $descricao,
                 $preco_atual, $preco_original, $link_afiliado,
-                $categoria_id, $programa_id
+                $categoria_id, $programa_id, $adminId
             ]);
 
             $oferta_id = $pdo->lastInsertId();

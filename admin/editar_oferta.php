@@ -7,6 +7,18 @@ if (!isset($_SESSION['admin'])) {
     exit;
 }
 
+$adminId = null;
+if (!empty($_SESSION['admin_id'])) {
+    $adminId = (int) $_SESSION['admin_id'];
+} elseif (!empty($_SESSION['admin_nome'])) {
+    $adminLookup = $pdo->prepare('SELECT id FROM admins WHERE nome = ? LIMIT 1');
+    $adminLookup->execute([$_SESSION['admin_nome']]);
+    $adminId = $adminLookup->fetchColumn() ?: null;
+    if ($adminId) {
+        $_SESSION['admin_id'] = (int) $adminId;
+    }
+}
+
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: ofertas.php');
     exit;
@@ -47,14 +59,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $programa_id = !empty($_POST['programa_id']) ? intval($_POST['programa_id']) : null;
 
     if ($titulo && $descricao_resumida && $descricao && $preco_atual && $link_afiliado) {
+        $adminIdToSave = $adminId ?? $oferta['admin_id'];
+
         $stmt = $pdo->prepare("UPDATE ofertas SET
-            titulo = ?, descricao_resumida = ?, descricao = ?, preco_atual = ?, preco_original = ?, 
-            link_afiliado = ?, categoria_id = ?, programa_id = ?
+            titulo = ?, descricao_resumida = ?, descricao = ?, preco_atual = ?, preco_original = ?,
+            link_afiliado = ?, categoria_id = ?, programa_id = ?, admin_id = ?
             WHERE id = ?");
         $stmt->execute([
             $titulo, $descricao_resumida, $descricao, $preco_atual, $preco_original,
-            $link_afiliado, $categoria_id, $programa_id, $id
+            $link_afiliado, $categoria_id, $programa_id, $adminIdToSave, $id
         ]);
+
+        $oferta['admin_id'] = $adminIdToSave;
 
         $sucesso = "Oferta atualizada com sucesso!";
 

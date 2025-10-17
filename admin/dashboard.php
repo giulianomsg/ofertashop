@@ -34,6 +34,37 @@ $stmt = $pdo->query("
 $statusOfertas = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 $ativas = $statusOfertas[1] ?? 0;
 $inativas = $statusOfertas[0] ?? 0;
+
+$totalOfertas = (int) $pdo->query('SELECT COUNT(*) FROM ofertas')->fetchColumn();
+$ofertasAtivasTotal = (int) $pdo->query('SELECT COUNT(*) FROM ofertas WHERE ativo = 1')->fetchColumn();
+$novasUltimos30 = (int) $pdo->query("SELECT COUNT(*) FROM ofertas WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)")->fetchColumn();
+$comentariosPendentes = (int) $pdo->query('SELECT COUNT(*) FROM comentarios WHERE aprovado = 0')->fetchColumn();
+$mediaDesconto = $pdo->query('SELECT AVG(CASE WHEN preco_original > 0 THEN ((preco_original - preco_atual) / preco_original) * 100 ELSE NULL END) FROM ofertas WHERE ativo = 1')->fetchColumn();
+$mediaDesconto = $mediaDesconto !== null ? round((float) $mediaDesconto, 1) : 0.0;
+$melhorOfertaStmt = $pdo->query('SELECT titulo, ROUND(((preco_original - preco_atual) / preco_original) * 100, 1) AS desconto FROM ofertas WHERE ativo = 1 AND preco_original > 0 ORDER BY desconto DESC LIMIT 1');
+$melhorOferta = $melhorOfertaStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
+$ofertasMesStmt = $pdo->query("SELECT DATE_FORMAT(created_at, '%Y-%m') AS mes, COUNT(*) AS total FROM ofertas WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH) GROUP BY mes ORDER BY mes");
+$ofertasPorMes = $ofertasMesStmt->fetchAll(PDO::FETCH_ASSOC);
+$mesLabels = [];
+$mesValores = [];
+$mesesAbreviados = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+foreach ($ofertasPorMes as $linha) {
+    $dataMes = DateTime::createFromFormat('Y-m', $linha['mes']);
+    if ($dataMes instanceof DateTime) {
+        $indiceMes = (int) $dataMes->format('n') - 1;
+        $mesLabels[] = $mesesAbreviados[$indiceMes] . '/' . $dataMes->format('y');
+    } else {
+        $mesLabels[] = $linha['mes'];
+    }
+    $mesValores[] = (int) $linha['total'];
+}
+
+$performanceStmt = $pdo->query("SELECT o.titulo, COALESCE(SUM(e.cliques), 0) AS cliques, COALESCE(SUM(e.visualizacoes), 0) AS visualizacoes FROM ofertas o LEFT JOIN estatisticas e ON e.oferta_id = o.id GROUP BY o.id ORDER BY cliques DESC, visualizacoes DESC LIMIT 5");
+$performance = $performanceStmt->fetchAll(PDO::FETCH_ASSOC);
+$performanceLabels = array_column($performance, 'titulo');
+$performanceCliques = array_map('intval', array_column($performance, 'cliques'));
+$performanceViews = array_map('intval', array_column($performance, 'visualizacoes'));
 ?>
 
 <!DOCTYPE html>
@@ -122,6 +153,49 @@ $inativas = $statusOfertas[0] ?? 0;
 
   <h2>Estatísticas Gerais</h2>
 
+  <div class="row g-4 mt-1">
+    <div class="col-lg-3 col-md-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted text-uppercase small">Ofertas publicadas</div>
+          <h3 class="fw-bold mb-1"><?= $totalOfertas ?></h3>
+          <small class="text-success">Ativas: <?= $ofertasAtivasTotal ?></small>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted text-uppercase small">Novas (30 dias)</div>
+          <h3 class="fw-bold mb-1"><?= $novasUltimos30 ?></h3>
+          <small class="text-muted">Atualize sempre que possível</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted text-uppercase small">Comentários pendentes</div>
+          <h3 class="fw-bold mb-1"><?= $comentariosPendentes ?></h3>
+          <small><a href="comentarios.php" class="text-decoration-none">Ir para moderação</a></small>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="text-muted text-uppercase small">Média de desconto</div>
+          <h3 class="fw-bold mb-1"><?= number_format($mediaDesconto, 1, ',', '.') ?>%</h3>
+          <?php if ($melhorOferta): ?>
+            <small class="text-success">Top: <?= htmlspecialchars($melhorOferta['titulo']) ?> (<?= number_format((float) $melhorOferta['desconto'], 1, ',', '.') ?>%)</small>
+          <?php else: ?>
+            <small class="text-muted">Cadastre mais ofertas com preço original</small>
+          <?php endif; ?>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="row mt-4">
     <!-- Gráfico 1: Ofertas por Categoria -->
     <div class="col-md-6 mb-4">
@@ -144,11 +218,32 @@ $inativas = $statusOfertas[0] ?? 0;
     </div>
 
     <!-- Gráfico 3: Ativas x Inativas -->
-    <div class="col-md-12">
+    <div class="col-lg-4 mb-4">
       <div class="card">
         <div class="card-header bg-warning text-dark">Status das Ofertas</div>
         <div class="card-body">
-          <canvas id="chartStatus" height="100"></canvas>
+          <canvas id="chartStatus" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico 4: Ofertas por mês -->
+    <div class="col-lg-8 mb-4">
+      <div class="card">
+        <div class="card-header bg-info text-white">Novas ofertas por mês</div>
+        <div class="card-body">
+          <canvas id="chartOfertasMes" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-12 mb-4">
+      <div class="card">
+        <div class="card-header bg-secondary text-white">Top 5 ofertas por cliques</div>
+        <div class="card-body">
+          <canvas id="chartPerformance" height="160"></canvas>
         </div>
       </div>
     </div>
@@ -162,6 +257,12 @@ $inativas = $statusOfertas[0] ?? 0;
   toggleBtn.addEventListener('click', () => {
     bodyWrapper.classList.toggle('collapsed');
   });
+
+  const ofertasMesLabels = <?= json_encode($mesLabels) ?>;
+  const ofertasMesValores = <?= json_encode($mesValores) ?>;
+  const performanceLabels = <?= json_encode($performanceLabels) ?>;
+  const performanceCliques = <?= json_encode($performanceCliques) ?>;
+  const performanceViews = <?= json_encode($performanceViews) ?>;
 
   // Gráfico 1: Categorias
   new Chart(document.getElementById("chartCategorias"), {
@@ -205,6 +306,61 @@ $inativas = $statusOfertas[0] ?? 0;
         data: [<?= $ativas ?>, <?= $inativas ?>],
         backgroundColor: ['#198754', '#dc3545']
       }]
+    }
+  });
+
+  // Gráfico 4: Ofertas por mês
+  new Chart(document.getElementById("chartOfertasMes"), {
+    type: "line",
+    data: {
+      labels: ofertasMesLabels,
+      datasets: [{
+        label: "Novas ofertas",
+        data: ofertasMesValores,
+        borderColor: '#0dcaf0',
+        backgroundColor: 'rgba(13, 202, 240, 0.2)',
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0 }
+        }
+      }
+    }
+  });
+
+  // Gráfico 5: Performance
+  new Chart(document.getElementById("chartPerformance"), {
+    type: "bar",
+    data: {
+      labels: performanceLabels,
+      datasets: [
+        {
+          label: 'Cliques',
+          data: performanceCliques,
+          backgroundColor: '#6610f2'
+        },
+        {
+          label: 'Visualizações',
+          data: performanceViews,
+          backgroundColor: '#ffc107'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { stacked: false },
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0 }
+        }
+      }
     }
   });
 </script>
